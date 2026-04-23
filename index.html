@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SteelDeal — ราคาเหล็ก THH</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0D1B2A;--navy2:#1B2E42;--steel:#1E5FA8;--orange:#F97316;--light:#EFF4FB;--white:#FFFFFF;--grey:#7A8FA6;--grey2:#B0BFCE;--border:#D4DEE8;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sarabun',sans-serif;background:var(--light);color:var(--navy);min-height:100vh;}
+header{background:var(--navy);color:#fff;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(13,27,42,0.4);}
+.header-main{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;}
+.logo{font-family:'Kanit',sans-serif;font-size:21px;font-weight:700;line-height:1;display:flex;flex-direction:column;}
+.logo .brand{display:flex;align-items:center;gap:7px;}
+.logo .dot{width:8px;height:8px;background:var(--orange);border-radius:50%;display:inline-block;}
+.logo .sub{font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:0.8px;text-transform:uppercase;margin-top:2px;}
+.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+.update-badge{font-size:10px;color:rgba(255,255,255,0.4);line-height:1.4;text-align:right;}
+.update-badge .t{color:var(--orange);font-weight:600;font-size:11px;}
+.refresh-btn{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.8);font-family:'Sarabun',sans-serif;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;}
+.refresh-btn.spin svg{animation:rot .8s linear infinite;}
+@keyframes rot{to{transform:rotate(360deg);}}
+.search-bar{display:flex;flex-direction:column;gap:8px;padding:10px 16px 12px;background:var(--navy2);border-top:1px solid rgba(255,255,255,0.06);}
+.search-wrap{position:relative;}
+.search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,0.35);pointer-events:none;width:15px;height:15px;}
+#searchInput{width:100%;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:9px 12px 9px 34px;color:#fff;font-family:'Sarabun',sans-serif;font-size:14px;outline:none;}
+#searchInput::placeholder{color:rgba(255,255,255,0.35);}
+#searchInput:focus{background:rgba(255,255,255,0.13);border-color:var(--orange);}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{flex-shrink:0;font-family:'Sarabun',sans-serif;font-size:12px;font-weight:500;padding:4px 12px;border-radius:20px;cursor:pointer;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);white-space:nowrap;}
+.chip.active{background:var(--orange);border-color:var(--orange);color:#fff;}
+.toolbar{background:#fff;border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;justify-content:space-between;}
+.count{font-size:12px;color:var(--grey);}
+.count strong{color:var(--navy);}
+.vat-toggle{display:flex;background:var(--light);border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+.vat-btn{font-family:'Sarabun',sans-serif;font-size:12px;font-weight:500;padding:5px 12px;border:none;cursor:pointer;background:transparent;color:var(--grey);}
+.vat-btn.active{background:var(--steel);color:#fff;}
+.state-box{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 24px;gap:14px;text-align:center;}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--steel);border-radius:50%;animation:rot .75s linear infinite;}
+.state-box p{font-size:14px;color:var(--grey);line-height:1.6;}
+.retry-btn{margin-top:6px;background:var(--steel);color:#fff;border:none;border-radius:8px;padding:9px 22px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
+.cat-section{margin-bottom:2px;}
+.cat-header{position:sticky;top:145px;z-index:100;background:var(--navy2);color:#fff;padding:9px 16px;display:flex;align-items:center;gap:8px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:500;}
+.cat-header::before{content:'';width:3px;height:14px;background:var(--orange);border-radius:2px;flex-shrink:0;}
+.cat-count{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.45);font-family:'Sarabun',sans-serif;}
+.product-card{background:#fff;border-bottom:1px solid var(--border);padding:13px 16px;display:flex;flex-direction:column;gap:7px;}
+.p-name{font-family:'Kanit',sans-serif;font-size:14px;font-weight:500;color:var(--navy);}
+.p-tags{display:flex;flex-wrap:wrap;gap:5px;}
+.p-tag{font-size:11px;color:var(--grey);background:var(--light);border:1px solid var(--border);padding:2px 8px;border-radius:4px;white-space:nowrap;}
+.p-price-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:2px;}
+.p-price-block{display:flex;flex-direction:column;gap:1px;}
+.p-price-label{font-size:10px;color:var(--grey2);letter-spacing:0.3px;text-transform:uppercase;}
+.p-price{font-family:'Kanit',sans-serif;font-size:24px;font-weight:700;color:var(--steel);line-height:1;}
+.p-price .sym{font-size:13px;color:var(--grey);margin-right:1px;}
+.p-price .per{font-size:12px;color:var(--grey);margin-left:2px;}
+.p-no-price{font-size:13px;color:var(--grey2);font-style:italic;}
+.p-actions{display:flex;flex-direction:column;align-items:flex-end;gap:5px;}
+.line-btn{display:flex;align-items:center;gap:5px;background:#06C755;color:#fff;border:none;border-radius:7px;padding:7px 12px;font-family:'Sarabun',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;flex-shrink:0;}
+.dist-price{font-size:11px;color:var(--grey2);text-align:right;}
+.dist-price span{color:var(--grey);}
+.p-installments{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px;}
+.inst{font-size:11px;background:var(--light);border:1px solid var(--border);color:var(--grey);padding:3px 8px;border-radius:5px;white-space:nowrap;}
+.inst strong{color:var(--navy2);font-size:12px;}
+footer{background:var(--navy);color:rgba(255,255,255,0.4);text-align:center;padding:20px 16px;font-size:12px;line-height:2;margin-top:12px;}
+footer strong{color:rgba(255,255,255,0.75);}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-main">
+    <div class="logo">
+      <div class="brand"><span class="dot"></span>SteelDeal</div>
+      <span class="sub">THH · Bang Phli · EEC</span>
+    </div>
+    <div class="header-right">
+      <div class="update-badge" id="updateBadge">กำลังโหลด...</div>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+        รีเฟรช
+      </button>
+    </div>
+  </div>
+  <div class="search-bar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="ค้นหา เช่น แป๊บแบน 2x1 หรือ GI 1.4mm..." autocomplete="off" oninput="applyFilter()">
+    </div>
+    <div class="chips" id="chipRow"><button class="chip active" data-cat="all" onclick="setCategory('all')">ทั้งหมด</button></div>
+  </div>
+</header>
+<div class="toolbar">
+  <div class="count" id="countLabel">—</div>
+  <div class="vat-toggle">
+    <button class="vat-btn active" data-vat="excl" onclick="setVAT(this)">excl. VAT</button>
+    <button class="vat-btn" data-vat="incl" onclick="setVAT(this)">incl. VAT +7%</button>
+  </div>
+</div>
+<div id="content"><div class="state-box"><div class="spinner"></div><p>กำลังดึงราคาล่าสุด...</p></div></div>
+<footer><strong>SteelDeal by THH</strong><br>Bang Phli, Samut Prakan · LINE OA: @SteelDeal<br>ราคา excl.VAT · จัดส่งพื้นที่ EEC</footer>
+<script>
+const SHEET_ID='1Bh_oSgWbAaOTS96Z-p1q-ZZ6inKQ1hl5BuRrgA5aCFw';
+const CSV_URL='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent('🔍 Tool Export');
+let all=[],shown=[],activeCat='all',q='',showIncl=false;
+function splitRow(line){const cols=[];let cur='',inQ=false;for(const ch of line){if(ch==='"')inQ=!inQ;else if(ch===','&&!inQ){cols.push(cur.trim());cur='';}else cur+=ch;}cols.push(cur.trim());return cols;}
+function parseCSV(raw){const lines=raw.split('\n'),p=[];for(let i=2;i<lines.length;i++){if(!lines[i].trim())continue;const c=splitRow(lines[i]);if(!c[0]||!c[1])continue;p.push({cat:c[0],name:c[1],size:c[2]||'',thick:c[3]||'',len:c[4]||'',wt:parseFloat(c[5])||null,dist:parseFloat(c[6])||null,cont:parseFloat(c[7])||null,inclV:parseFloat(c[8])||null,i10:parseFloat(c[9])||null});}return p;}
+async function loadData(){const btn=document.getElementById('refreshBtn');btn.classList.add('spin');document.getElementById('content').innerHTML='<div class="state-box"><div class="spinner"></div><p>กำลังดึงราคา...</p></div>';document.getElementById('countLabel').textContent='—';try{const r=await fetch(CSV_URL);if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();all=parseCSV(t);if(!all.length)throw new Error('ไม่พบข้อมูล');buildChips();applyFilter();const now=new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});document.getElementById('updateBadge').innerHTML='อัปเดต <span class="t">'+now+'</span><br>'+all.length+' รายการ';}catch(err){document.getElementById('content').innerHTML='<div class="state-box"><div style="font-size:32px">⚠️</div><p>โหลดราคาไม่สำเร็จ<br><small style="color:var(--grey2)">'+err.message+'</small></p><button class="retry-btn" onclick="loadData()">ลองใหม่</button></div>';document.getElementById('updateBadge').textContent='โหลดไม่สำเร็จ';}finally{btn.classList.remove('spin');}}
+function buildChips(){const cats=[...new Set(all.map(p=>p.cat))];const row=document.getElementById('chipRow');row.innerHTML='<button class="chip active" data-cat="all" onclick="setCategory(\'all\')">ทั้งหมด</button>';cats.forEach(c=>{const b=document.createElement('button');b.className='chip';b.dataset.cat=c;b.textContent=c;b.onclick=()=>setCategory(c);row.appendChild(b);});}
+function setCategory(cat){activeCat=cat;document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c.dataset.cat===cat));applyFilter();}
+function setVAT(btn){showIncl=btn.dataset.vat==='incl';document.querySelectorAll('.vat-btn').forEach(b=>b.classList.toggle('active',b===btn));render();}
+function applyFilter(){q=document.getElementById('searchInput').value.toLowerCase().trim();const terms=q?q.split(/\s+/):[];shown=all.filter(p=>(activeCat==='all'||p.cat===activeCat)&&(!terms.length||terms.every(t=>(p.cat+' '+p.name+' '+p.size+' '+p.thick).toLowerCase().includes(t))));render();}
+function fmt(n){return(n!=null&&!isNaN(n))?Math.round(n).toLocaleString('th-TH'):'—';}
+function render(){const content=document.getElementById('content'),cnt=document.getElementById('countLabel');if(!shown.length){cnt.textContent='ไม่พบสินค้า';content.innerHTML='<div class="state-box"><p>ไม่พบสินค้าที่ค้นหา</p></div>';return;}cnt.innerHTML='พบ <strong>'+shown.length+'</strong> รายการ';const g={};shown.forEach(p=>{(g[p.cat]=g[p.cat]||[]).push(p);});const frag=document.createDocumentFragment();Object.entries(g).forEach(([cat,items])=>{const sec=document.createElement('div');sec.className='cat-section';const hdr=document.createElement('div');hdr.className='cat-header';hdr.innerHTML=cat+'<span class="cat-count">'+items.length+' รายการ</span>';sec.appendChild(hdr);items.forEach(p=>sec.appendChild(buildCard(p)));frag.appendChild(sec);});content.innerHTML='';content.appendChild(frag);}
+function buildCard(p){const el=document.createElement('div');el.className='product-card';const price=showIncl?p.inclV:p.cont;const lbl=showIncl?'ราคา incl.VAT / เส้น':'Cont Cash excl.VAT / เส้น';const i3=p.cont?Math.round(p.cont*1.03):null;const i6=p.cont?Math.round(p.cont*1.06):null;const msg=encodeURIComponent('สอบถามราคา: '+p.name+(p.size?'\nขนาด: '+p.size:'')+(p.thick?' หนา '+p.thick+'mm':'')+(p.len?' ยาว '+p.len+'m':'')+'\nราคา: ฿'+fmt(price)+' ('+(showIncl?'incl':'excl')+'.VAT)\n\nSteelDeal by THH');el.innerHTML='<div class="p-name">'+p.name+'</div><div class="p-tags">'+(p.size?'<span class="p-tag">📐 '+p.size+'</span>':'')+(p.thick?'<span class="p-tag">หนา '+p.thick+'mm</span>':'')+(p.len?'<span class="p-tag">ยาว '+p.len+'m</span>':'')+(p.wt?'<span class="p-tag">⚖ '+p.wt+' kg</span>':'')+'</div><div class="p-price-row"><div class="p-price-block"><div class="p-price-label">'+lbl+'</div>'+(price?'<div class="p-price"><span class="sym">฿</span>'+fmt(price)+'<span class="per">/เส้น</span></div>':'<div class="p-no-price">ติดต่อสอบถาม</div>')+'</div><div class="p-actions"><a class="line-btn" href="https://line.me/R/msg/text/?'+msg+'" target="_blank"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.03 2 11c0 3.13 1.68 5.9 4.25 7.62L5.5 22l3.75-1.88c.9.25 1.78.38 2.75.38 5.52 0 10-4.03 10-9S17.52 2 12 2z"/></svg>LINE</a>'+(p.dist?'<div class="dist-price">Dist: <span>฿'+fmt(p.dist)+'</span></div>':'')+'</div></div>'+((i3||i6||p.i10)&&!showIncl?'<div class="p-installments">'+(i3?'<div class="inst">ผ่อน 3เดือน <strong>฿'+fmt(i3)+'</strong></div>':'')+(i6?'<div class="inst">ผ่อน 6เดือน <strong>฿'+fmt(i6)+'</strong></div>':'')+(p.i10?'<div class="inst">ผ่อน 10เดือน <strong>฿'+fmt(p.i10)+'</strong></div>':'')+'</div>':'');return el;}
+loadData();
+</script>
+</body>
+</html>
