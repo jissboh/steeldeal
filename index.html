@@ -1,99 +1,344 @@
-
-SteelDeal
-🧮 คำนวณราคา
-📋 รายการราคา
-📦 ฐานข้อมูลสินค้า
-📥 นำเข้าข้อมูล
-กำลังโหลด...
-
-ซิงค์ราคา
-ข้อมูลลูกค้า
-ชื่อลูกค้า *
-เบอร์โทร / LINE
-ที่อยู่จัดส่ง
-วันที่ส่งของ
-ขนส่งโดย
-                SteelDeal จัดส่ง
-                รับเองหน้าโรงงาน
-              
-🔍 ค้นหาสินค้าด่วน
-
-รายการสั่งซื้อ
-+ เพิ่มสินค้า
-📋
-กดปุ่ม "เพิ่มสินค้า" หรือค้นหาด่วนด้านบนเพื่อเริ่มสร้างใบเสนอราคา
-🚚 คำนวณค่าขนส่ง
-📋 ตารางราคา
-🔒 น้ำหนักรวม: 0.00 ตัน
-ประเภทรถ
-                -- เลือกรถ --
-                รถ 6 ล้อ (สูงสุด 2 ตัน)
-                รถ 10 ล้อ (สูงสุด 15 ตัน)
-                รถ 10 ล้อ + เครน (สูงสุด 11 ตัน)
-                รถ 12 ล้อ (สูงสุด 19 ตัน)
-                รถพ่วง (สูงสุด 30 ตัน)
-              
-จังหวัดปลายทาง
-                -- เลือกจังหวัด --
-                
-                  กรุงเทพมหานคร
-                  สมุทรปราการ (บางนา-แบริ่ง)
-                
-                
-                  นนทบุรีปทุมธานี
-                  สมุทรสาครนครปฐม
-                  ฉะเชิงเทรา (บางปะกง-ใกล้)
-                
-                
-                  ชลบุรีระยอง
-                  พระนครศรีอยุธยาสระบุรี
-                  ฉะเชิงเทรา (พนมสารคาม-ไกล)
-                
-                
-                  นครราชสีมาปราจีนบุรี
-                  สุพรรณบุรีลพบุรี
-                
-                
-                  อื่นๆ (ประเมินหน้างาน)
-                
-              
-
-เด็กติดรถช่วยยก (1 คน) +฿200
-🧾 VAT
-ภาษีมูลค่าเพิ่ม
-                ไม่รวม VAT
-                รวม VAT 7%
-              
-ยอดรวมสุทธิ
-฿0
-หมายเหตุ
-
-สรุปออร์เดอร์
-🔒 INTERNAL
-🔒 ข้อมูลนี้สำหรับทีม Sales เท่านั้น
-ยังไม่มีรายการ
-
-ราคารวม
-฿0
-ตัวเลือกการชำระเงิน
-ผ่อน 10 เดือน เต็ม
-฿0
-เดือนละ ฿0
-ผ่อน 6 เดือน
-฿0
-เดือนละ ฿0
-ผ่อน 4 เดือน
-฿0
-เดือนละ ฿0
-ผ่อน 3 เดือน
-฿0
-เดือนละ ฿0
-ผ่อน 2 เดือน
-฿0
-เดือนละ ฿0
-💰 เงินสด คุ้มสุด!
-฿0
-ลด 9.6%
-ใบเสนอราคา (ลูกค้า)
-📝 สร้างใบเสนอราคา 📋 คัดลอก 📲 ถามข้อมูลลูกค้า
-กดปุ่ม "สร้างใบเสนอราคา" เพื่อสร้างข้อความส่งให้ลูกค้า...
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SteelDeal — ระบบขาย THH</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--red:#DC2626;--red2:#B91C1C;--red-lt:#FEF2F2;--red-md:#FECACA;--green:#16A34A;--grn-lt:#F0FDF4;--int:#D97706;--int-lt:#FFFBEB;--navy:#0F172A;--text:#1E293B;--muted:#64748B;--light:#F8FAFC;--white:#FFFFFF;--border:#E2E8F0;--border2:#CBD5E1;--panel:#FFFFFF;--mid:#F1F5F9;--mono:'Courier New',monospace;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sarabun',sans-serif;background:var(--light);color:var(--text);min-height:100vh;}
+label{display:block;font-size:12px;color:var(--muted);font-weight:500;margin-bottom:4px;}
+input,select,textarea{width:100%;padding:8px 11px;font-size:14px;font-family:'Sarabun',sans-serif;border:1px solid var(--border2);border-radius:6px;background:var(--white);color:var(--text);outline:none;transition:border-color 0.15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--red);}
+input[type="checkbox"]{width:auto;}
+hr{border:none;border-top:1px solid var(--border);margin:10px 0;}
+.text-red{color:var(--red)!important;}.text-muted{color:var(--muted);font-size:13px;}.text-mono{font-family:var(--mono);font-weight:600;}
+.flex{display:flex;align-items:center;gap:8px;}.flex-between{display:flex;align-items:center;justify-content:space-between;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}.mt-10{margin-top:10px;}.mt-16{margin-top:16px;}
+.topbar{background:var(--navy);color:#fff;padding:0 20px;display:flex;align-items:center;gap:0;box-shadow:0 2px 8px rgba(0,0,0,0.2);position:sticky;top:0;z-index:300;}
+.topbar-logo{font-family:'Kanit',sans-serif;font-size:18px;font-weight:700;padding:13px 20px 13px 0;border-right:1px solid rgba(255,255,255,0.1);margin-right:16px;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+.topbar-logo .dot{width:8px;height:8px;background:var(--red);border-radius:50%;}
+.tabs{display:flex;gap:0;flex:1;}
+.tab{padding:16px 20px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:500;color:rgba(255,255,255,0.55);cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;transition:all 0.15s;white-space:nowrap;}
+.tab:hover{color:rgba(255,255,255,0.85);}.tab.active{color:#fff;border-bottom-color:var(--red);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;padding-left:16px;border-left:1px solid rgba(255,255,255,0.1);}
+.sync-badge{font-size:11px;color:rgba(255,255,255,0.5);line-height:1.4;text-align:right;}
+.sync-badge .t{color:#4ADE80;font-weight:600;}
+.sync-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.8);font-family:'Sarabun',sans-serif;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px;}
+.sync-btn.spin svg{animation:rot .8s linear infinite;}
+@keyframes rot{to{transform:rotate(360deg);}}
+.tab-content{display:none;}.tab-content.active{display:block;}
+.container{max-width:1400px;margin:0 auto;padding:20px;}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.04);}
+.panel-header{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--border);}
+.panel-title{font-family:'Kanit',sans-serif;font-size:14px;font-weight:600;color:var(--text);}
+.panel-body{padding:16px 18px;}
+.internal-tag{font-size:10px;font-weight:700;background:var(--int-lt);color:var(--int);border:1px solid #FCD34D;padding:2px 8px;border-radius:4px;}
+.section-internal{background:var(--int-lt);border:1px solid #FCD34D;border-left:3px solid var(--int);padding:8px 12px;border-radius:4px;font-size:12px;color:var(--int);margin-bottom:12px;}
+.internal-val{color:var(--int);font-family:var(--mono);font-size:13px;}.internal-col{color:var(--int)!important;}
+.btn{padding:8px 16px;font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;border-radius:6px;cursor:pointer;border:none;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+.btn-primary{background:var(--red);color:#fff;}.btn-primary:hover{background:var(--red2);}
+.btn-ghost{background:var(--white);color:var(--text);border:1px solid var(--border2);}.btn-ghost:hover{border-color:#94A3B8;background:var(--mid);}
+.btn-danger{background:var(--white);color:var(--red);border:1px solid var(--red-md);}.btn-danger:hover{background:var(--red-lt);}
+.btn-icon{padding:7px 10px;background:var(--white);border:1px solid var(--border2);color:var(--muted);cursor:pointer;border-radius:6px;font-size:13px;transition:all 0.15s;}
+.btn-icon:hover{color:var(--red);border-color:var(--red-md);}
+.btn-qty{padding:4px 10px;background:var(--mid);border:1px solid var(--border2);color:var(--text);cursor:pointer;border-radius:4px;font-size:16px;font-weight:600;line-height:1;}
+.btn-qty:hover{background:var(--red-lt);border-color:var(--red-md);}
+.order-row{display:grid;grid-template-columns:2fr 160px 120px 120px 44px;gap:12px;align-items:end;padding:14px 0;border-bottom:1px solid var(--border);}
+.order-row:last-child{border-bottom:none;}
+.sku-code{font-family:var(--mono);font-size:11px;background:var(--mid);color:var(--muted);padding:2px 6px;border-radius:3px;display:inline-block;}
+.weight-badge{font-size:11px;color:var(--int);background:var(--int-lt);padding:2px 6px;border-radius:3px;display:inline-block;border:1px solid #FCD34D;}
+.search-result-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;border-radius:6px;transition:background 0.1s;border:1px solid var(--border);margin-bottom:6px;}
+.search-result-item:hover{background:var(--red-lt);border-color:var(--red-md);}
+.search-result-sku{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.search-result-name{font-size:13px;font-weight:500;}
+.search-result-price{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--red);white-space:nowrap;}
+.payment-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.payment-card{border:2px solid var(--border);border-radius:8px;padding:12px 10px;cursor:pointer;transition:all 0.15s;text-align:center;}
+.payment-card:hover{border-color:var(--red-md);background:var(--red-lt);}.payment-card.active{border-color:var(--red);background:var(--red-lt);}
+.payment-card .months{font-size:11px;color:var(--muted);margin-bottom:4px;}
+.payment-card .per-month-amount{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--red);}
+.payment-card .amount{font-size:11px;color:var(--muted);margin-top:2px;}
+.payment-card .discount{font-size:11px;color:var(--green);font-weight:600;}
+.summary-line{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.summary-line:last-child{border-bottom:none;}
+.summary-line .label{color:var(--muted);flex:1;padding-right:12px;}
+.summary-line .value{font-family:var(--mono);font-weight:600;}
+.summary-line.total .label{font-weight:700;color:var(--text);font-size:14px;}
+.summary-line.total .value{font-size:18px;color:var(--red);}
+.internal-line .value{color:var(--int);}
+#quote-output{background:var(--mid);border:1px solid var(--border);border-radius:6px;padding:14px;font-family:var(--mono);font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--text);min-height:120px;}
+.product-table{width:100%;border-collapse:collapse;font-size:13px;}
+.product-table th{text-align:left;padding:10px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);background:var(--mid);border-bottom:1px solid var(--border);}
+.product-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
+.product-table tr:hover td{background:var(--red-lt);}
+.action-btns{display:flex;gap:6px;}
+.import-box{border:2px dashed var(--border2);border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:border-color 0.15s,background 0.15s;}
+.import-box:hover{border-color:var(--red);background:var(--red-lt);}
+.import-icon{font-size:36px;margin-bottom:8px;}
+.empty-state{text-align:center;padding:32px;color:var(--muted);}
+.empty-state .icon{font-size:36px;margin-bottom:8px;}
+.empty-state p{font-size:14px;}
+#logistics-breakdown{margin-top:14px;padding:14px;background:var(--mid);border-radius:8px;}
+.logistics-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:var(--muted);}
+.logistics-row .val{font-family:var(--mono);color:var(--text);}
+.logistics-total{display:flex;justify-content:space-between;font-size:16px;font-weight:700;margin-top:6px;}
+.logistics-total .val{color:var(--red);font-family:var(--mono);}
+.next-unlock-box{background:var(--red-lt);border-left:3px solid var(--red);padding:10px 12px;border-radius:4px;font-size:12px;line-height:1.5;margin:8px 0;color:var(--red2);}
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;}
+#modal.open{display:flex;}
+.modal-box{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:24px;width:540px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+#pricing-table-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;overflow-y:auto;}
+#pricing-table-modal.open{display:flex;}
+.pricing-table-box{background:var(--white);border-radius:12px;padding:24px;max-width:700px;width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);}
+.pricing-table-inner{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
+.pricing-table-inner th,.pricing-table-inner td{padding:8px 12px;border:1px solid var(--border);text-align:center;}
+.pricing-table-inner th{background:var(--mid);font-weight:600;font-size:12px;}
+#toast{display:none;position:fixed;bottom:24px;right:24px;background:var(--navy);color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:500;border-left:4px solid var(--green);z-index:999;box-shadow:0 8px 24px rgba(0,0,0,0.2);}
+.price-cat-header{background:var(--navy);color:#fff;padding:9px 18px;display:flex;align-items:center;gap:8px;font-family:'Kanit',sans-serif;font-size:13px;font-weight:500;position:sticky;top:57px;z-index:100;}
+.price-cat-header::before{content:'';width:3px;height:14px;background:var(--red);border-radius:2px;flex-shrink:0;}
+.cat-count{margin-left:auto;font-size:11px;color:rgba(255,255,255,0.45);font-family:'Sarabun',sans-serif;}
+.price-card{background:var(--white);border-bottom:1px solid var(--border);padding:13px 18px;display:flex;flex-direction:column;gap:6px;}
+.price-card-name{font-family:'Kanit',sans-serif;font-size:14px;font-weight:500;}
+.price-card-tags{display:flex;flex-wrap:wrap;gap:5px;}
+.price-tag{font-size:11px;color:var(--muted);background:var(--mid);border:1px solid var(--border);padding:2px 8px;border-radius:4px;white-space:nowrap;}
+.price-card-row{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;}
+.price-amount{font-family:'Kanit',sans-serif;font-size:24px;font-weight:700;color:#1E5FA8;}
+.price-amount .sym{font-size:13px;color:var(--muted);margin-right:1px;}
+.price-amount .per{font-size:12px;color:var(--muted);margin-left:2px;}
+.price-installments{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px;}
+.price-inst{font-size:11px;background:var(--mid);border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:5px;white-space:nowrap;}
+.price-inst strong{color:var(--navy);font-size:12px;}
+.line-btn{display:flex;align-items:center;gap:5px;background:#06C755;color:#fff;border:none;border-radius:7px;padding:7px 12px;font-family:'Sarabun',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;flex-shrink:0;}
+.chips-bar{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:10px 18px;background:var(--white);border-bottom:1px solid var(--border);}
+.chips-bar::-webkit-scrollbar{display:none;}
+.chip-btn{flex-shrink:0;font-family:'Sarabun',sans-serif;font-size:12px;font-weight:500;padding:5px 14px;border-radius:20px;cursor:pointer;border:1px solid var(--border2);background:var(--white);color:var(--muted);white-space:nowrap;transition:all 0.15s;}
+.chip-btn.active{background:var(--red);border-color:var(--red);color:#fff;}
+.vat-bar-pl{background:var(--white);border-bottom:1px solid var(--border);padding:8px 18px;display:flex;align-items:center;justify-content:space-between;}
+.vat-toggle-pl{display:flex;background:var(--mid);border:1px solid var(--border);border-radius:7px;overflow:hidden;}
+.vat-btn-pl{font-family:'Sarabun',sans-serif;font-size:12px;font-weight:500;padding:5px 12px;border:none;cursor:pointer;background:transparent;color:var(--muted);}
+.vat-btn-pl.active{background:#1E5FA8;color:#fff;}
+.pl-count{font-size:12px;color:var(--muted);}.pl-count strong{color:var(--navy);}
+.pl-search{display:flex;padding:10px 18px;background:var(--white);border-bottom:1px solid var(--border);gap:8px;}
+.pl-search input{flex:1;}
+.state-box{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;gap:14px;text-align:center;}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:rot .75s linear infinite;}
+.state-box p{font-size:14px;color:var(--muted);line-height:1.6;}
+.retry-btn{background:var(--red);color:#fff;border:none;border-radius:8px;padding:9px 22px;font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
+.checkbox-label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-logo"><span class="dot"></span>SteelDeal</div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('calculator')">🧮 คำนวณราคา</button>
+    <button class="tab" onclick="switchTab('pricelist')">📋 รายการราคา</button>
+    <button class="tab" onclick="switchTab('products')">📦 ฐานข้อมูลสินค้า</button>
+    <button class="tab" onclick="switchTab('import')">📥 นำเข้าข้อมูล</button>
+  </div>
+  <div class="topbar-right">
+    <div class="sync-badge" id="syncBadge">กำลังโหลด...</div>
+    <button class="sync-btn" id="syncBtn" onclick="loadFromSheets()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+      ซิงค์ราคา
+    </button>
+  </div>
+</div>
+<div id="tab-calculator" class="tab-content active">
+<div class="container">
+  <div style="display:grid;grid-template-columns:1fr 360px;gap:20px;">
+    <div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">ข้อมูลลูกค้า</span></div>
+        <div class="panel-body">
+          <div class="grid-2">
+            <div><label>ชื่อลูกค้า *</label><input type="text" id="cust-name" placeholder="ชื่อ / ร้าน"></div>
+            <div><label>เบอร์โทร / LINE</label><input type="text" id="cust-contact" placeholder="0812345678"></div>
+          </div>
+          <div style="margin-top:12px;"><label>ที่อยู่จัดส่ง</label><textarea id="cust-address" rows="2" style="resize:vertical;"></textarea></div>
+          <div class="grid-2" style="margin-top:12px;">
+            <div><label>วันที่ส่งของ</label><input type="date" id="delivery-date"></div>
+            <div><label>ขนส่งโดย</label><select id="shipping-method"><option value="SteelDeal">SteelDeal จัดส่ง</option><option value="รับเอง">รับเองหน้าโรงงาน</option></select></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="border-left:3px solid var(--red);">
+        <div class="panel-header"><span class="panel-title">🔍 ค้นหาสินค้าด่วน</span></div>
+        <div class="panel-body">
+          <input type="text" id="quick-search" placeholder="พิมพ์ชื่อสินค้า เช่น แป๊บแบน 2x1 หรือ GI..." oninput="quickSearch(this.value)" style="font-size:15px;">
+          <div id="quick-search-results" style="margin-top:10px;max-height:220px;overflow-y:auto;"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">รายการสั่งซื้อ</span><button class="btn btn-primary" onclick="addOrderRow()">+ เพิ่มสินค้า</button></div>
+        <div class="panel-body" id="order-items"><div class="empty-state"><div class="icon">📋</div><p>กดปุ่ม "เพิ่มสินค้า" หรือค้นหาด่วนด้านบน</p></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">🚚 คำนวณค่าขนส่ง</span><button class="btn btn-ghost" onclick="togglePricingTable()" style="font-size:11px;">📋 ตารางราคา</button></div>
+        <div class="panel-body">
+          <div class="section-internal">🔒 น้ำหนักรวม: <strong id="total-weight-display">0.00 ตัน</strong></div>
+          <div class="grid-2">
+            <div><label>ประเภทรถ</label><select id="truck-type" onchange="calculateLogistics()"><option value="">-- เลือกรถ --</option><option value="6wheel">รถ 6 ล้อ (≤2ต)</option><option value="10wheel">รถ 10 ล้อ (≤15ต)</option><option value="10wheel-crane">รถ 10 ล้อ+เครน (≤11ต)</option><option value="12wheel">รถ 12 ล้อ (≤19ต)</option><option value="trailer">รถพ่วง (≤30ต)</option></select></div>
+            <div><label>จังหวัดปลายทาง</label><select id="destination-province" onchange="calculateLogistics()"><option value="">-- เลือกจังหวัด --</option><optgroup label="Zone A — กทม.+ปริมณฑลใกล้"><option value="A">กรุงเทพมหานคร</option><option value="A">สมุทรปราการ (บางนา)</option></optgroup><optgroup label="Zone B — ปริมณฑลกลาง"><option value="B">นนทบุรี</option><option value="B">ปทุมธานี</option><option value="B">สมุทรสาคร</option><option value="B">นครปฐม</option><option value="B">ฉะเชิงเทรา (ใกล้)</option></optgroup><optgroup label="Zone C — ภาคกลางใกล้"><option value="C">ชลบุรี</option><option value="C">ระยอง</option><option value="C">พระนครศรีอยุธยา</option><option value="C">สระบุรี</option><option value="C">ฉะเชิงเทรา (ไกล)</option></optgroup><optgroup label="Zone D — ภาคกลางไกล"><option value="D">นครราชสีมา</option><option value="D">ปราจีนบุรี</option><option value="D">สุพรรณบุรี</option><option value="D">ลพบุรี</option></optgroup><optgroup label="Zone E — ต่างจังหวัดไกล"><option value="E">อื่นๆ (ประเมินหน้างาน)</option></optgroup></select></div>
+          </div>
+          <div style="margin-top:10px;"><label class="checkbox-label"><input type="checkbox" id="helper-checkbox" onchange="calculateLogistics()"><span>เด็กติดรถช่วยยก +฿200</span></label></div>
+          <div id="logistics-breakdown" style="display:none;">
+            <div class="logistics-row"><span>ค่าขนส่งฐาน:</span><span class="val" id="logistics-base">฿0</span></div>
+            <div id="helper-line" class="logistics-row" style="display:none;"><span>เด็กติดรถ:</span><span class="val">+฿200</span></div>
+            <hr><div class="logistics-row"><span>รวมก่อนส่วนลด:</span><span class="val" id="logistics-before-discount">฿0</span></div>
+            <div id="discount-line" class="logistics-row" style="display:none;color:var(--green);"><span id="discount-label">🎁 ส่วนลด:</span><span class="val" id="logistics-discount" style="color:var(--green);">-฿0</span></div>
+            <div id="next-unlock-box" class="next-unlock-box" style="display:none;"><span id="next-unlock-message"></span></div>
+            <hr><div class="logistics-total"><span>ค่าขนส่งสุทธิ:</span><span class="val" id="logistics-final">฿0</span></div>
+          </div>
+          <div id="manual-logistics" style="margin-top:12px;display:none;"><label>ระบุค่าขนส่ง (฿)</label><input type="number" id="logistics-manual" placeholder="0" min="0" oninput="updateManualLogistics()"></div>
+          <input type="hidden" id="logistics-cost" value="0">
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">🧾 VAT</span></div>
+        <div class="panel-body"><div class="grid-2">
+          <div><label>ภาษีมูลค่าเพิ่ม</label><select id="vat-toggle" onchange="updateSummary()"><option value="0">ไม่รวม VAT</option><option value="7" selected>รวม VAT 7%</option></select></div>
+          <div><label>ยอดรวมสุทธิ</label><div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--red);padding:7px 0;" id="grand-total-display">฿0</div></div>
+        </div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">หมายเหตุ</span></div>
+        <div class="panel-body"><textarea id="order-notes" rows="2" placeholder="หมายเหตุสำหรับลูกค้า..."></textarea></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">สรุปออร์เดอร์</span><span class="internal-tag">🔒 INTERNAL</span></div>
+        <div class="panel-body">
+          <div class="section-internal">🔒 ข้อมูลนี้สำหรับทีม Sales เท่านั้น</div>
+          <div id="internal-summary"><div class="text-muted" style="text-align:center;padding:16px;">ยังไม่มีรายการ</div></div>
+          <hr><div class="summary-line total"><span class="label">ราคารวม</span><span class="value text-red" id="total-price">฿0</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">ตัวเลือกการชำระเงิน</span></div>
+        <div class="panel-body"><div class="payment-grid">
+          <div class="payment-card" data-months="10" data-discount="0" onclick="selectPayment(this)"><div class="months">ผ่อน 10 เดือน <span style="background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;">เต็ม</span></div><div class="per-month-amount" id="pay-10">฿0</div><div class="amount" id="pay-10-sub">เดือนละ ฿0</div></div>
+          <div class="payment-card" data-months="6" data-discount="3.7" onclick="selectPayment(this)"><div class="months">ผ่อน 6 เดือน</div><div class="per-month-amount" id="pay-6">฿0</div><div class="amount" id="pay-6-sub">เดือนละ ฿0</div></div>
+          <div class="payment-card" data-months="4" data-discount="5.6" onclick="selectPayment(this)"><div class="months">ผ่อน 4 เดือน</div><div class="per-month-amount" id="pay-4">฿0</div><div class="amount" id="pay-4-sub">เดือนละ ฿0</div></div>
+          <div class="payment-card" data-months="3" data-discount="6.6" onclick="selectPayment(this)"><div class="months">ผ่อน 3 เดือน</div><div class="per-month-amount" id="pay-3">฿0</div><div class="amount" id="pay-3-sub">เดือนละ ฿0</div></div>
+          <div class="payment-card" data-months="2" data-discount="7.5" onclick="selectPayment(this)"><div class="months">ผ่อน 2 เดือน</div><div class="per-month-amount" id="pay-2">฿0</div><div class="amount" id="pay-2-sub">เดือนละ ฿0</div></div>
+          <div class="payment-card active" data-months="0" data-discount="9.6" onclick="selectPayment(this)"><div class="months">💰 เงินสด <span style="background:var(--green);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;">คุ้มสุด!</span></div><div class="per-month-amount" id="pay-0">฿0</div><div class="discount">ลด 9.6%</div></div>
+        </div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title">ใบเสนอราคา (ลูกค้า)</span></div>
+        <div class="panel-body">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <button class="btn btn-ghost" onclick="generateQuote()">📝 สร้างใบเสนอราคา</button>
+            <button class="btn btn-ghost" onclick="copyQuote()">📋 คัดลอก</button>
+            <button class="btn btn-ghost" onclick="copyCustomerInfoTemplate()">📲 ถามข้อมูลลูกค้า</button>
+          </div>
+          <div id="quote-output">กดปุ่ม "สร้างใบเสนอราคา" เพื่อสร้างข้อความส่งให้ลูกค้า...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div id="tab-pricelist" class="tab-content">
+  <div class="pl-search"><input type="text" id="pl-search" placeholder="ค้นหาสินค้า เช่น แป๊บแบน 2x1 หรือ GI 1.4mm..." oninput="plFilter()"></div>
+  <div class="chips-bar" id="pl-chips"><button class="chip-btn active" data-cat="all" onclick="plSetCat('all')">ทั้งหมด</button></div>
+  <div class="vat-bar-pl"><div class="pl-count" id="pl-count">—</div><div class="vat-toggle-pl"><button class="vat-btn-pl active" data-vat="excl" onclick="plSetVAT(this)">excl. VAT</button><button class="vat-btn-pl" data-vat="incl" onclick="plSetVAT(this)">incl. VAT +7%</button></div></div>
+  <div id="pl-content"><div class="state-box"><div class="spinner"></div><p>กำลังโหลดราคา...</p></div></div>
+</div>
+<div id="tab-products" class="tab-content">
+<div class="container"><div class="panel">
+  <div class="panel-header"><span class="panel-title">ฐานข้อมูลสินค้า (<span id="product-count">0</span> รายการ)</span><div class="flex"><button class="btn btn-ghost" onclick="exportProducts()">📄 Export CSV</button><button class="btn btn-primary" onclick="openAddModal()">+ เพิ่มสินค้า</button></div></div>
+  <div class="panel-body" style="padding:0;">
+    <div style="padding:12px 18px;border-bottom:1px solid var(--border);"><input type="text" id="search-products" placeholder="🔍 ค้นหา SKU หรือชื่อสินค้า..." oninput="filterProducts()"></div>
+    <div class="section-internal" style="margin:12px 18px 0;">🔒 คอลัมน์สีเหลือง สำหรับ Sales เท่านั้น</div>
+    <div style="overflow-x:auto;padding-bottom:12px;"><table class="product-table"><thead><tr><th>SKU</th><th>ชื่อสินค้า</th><th>ราคา/เส้น (฿)</th><th>หน่วย</th><th class="internal-col">🔒 น้ำหนัก (kg)</th><th class="internal-col">🔒 ราคา/kg</th><th style="width:90px;"></th></tr></thead><tbody id="products-tbody"><tr><td colspan="7"><div class="empty-state"><div class="icon">📦</div><p>กด "ซิงค์ราคา" เพื่อโหลดจาก Google Sheets</p></div></td></tr></tbody></table></div>
+  </div>
+</div></div>
+</div>
+<div id="tab-import" class="tab-content">
+<div class="container">
+  <div class="panel"><div class="panel-header"><span class="panel-title">รูปแบบ CSV</span></div><div class="panel-body"><div class="section-internal">🔒 WeightPerPiece และ PricePerKG เป็นข้อมูล Internal</div><div style="font-family:var(--mono);font-size:12px;background:var(--mid);padding:12px;border-radius:6px;line-height:2;">SKU,Name,PricePerPiece,Unit,WeightPerPiece,PricePerKG</div><div class="flex mt-10"><button class="btn btn-ghost" onclick="downloadTemplate()">⬇ ดาวน์โหลด Template</button></div></div></div>
+  <div class="panel"><div class="panel-header"><span class="panel-title">นำเข้าจากไฟล์ CSV</span></div><div class="panel-body">
+    <div class="import-box" onclick="document.getElementById('csv-file').click()" id="drop-zone"><div class="import-icon">📂</div><p style="font-weight:600;margin-bottom:4px;">คลิกเพื่อเลือกไฟล์ หรือลาก CSV มาวาง</p><p class="text-muted">รองรับ .csv และ .txt (UTF-8)</p><input type="file" id="csv-file" accept=".csv,.txt" style="display:none" onchange="handleFileImport(event)"></div>
+    <div class="mt-16"><label>หรือวางข้อมูล CSV โดยตรง</label><textarea id="csv-paste" rows="6" placeholder="วางข้อมูล CSV ที่นี่..."></textarea><div class="flex mt-10"><select id="import-mode" style="width:auto;"><option value="add">เพิ่ม / อัปเดต</option><option value="replace">แทนที่ทั้งหมด</option></select><button class="btn btn-primary" onclick="importCSV()">📥 นำเข้า</button></div></div>
+    <div id="import-result" class="mt-10"></div>
+  </div></div>
+  <div class="panel"><div class="panel-header"><span class="panel-title">โหลดข้อมูลตัวอย่าง</span></div><div class="panel-body"><button class="btn btn-ghost" onclick="loadSampleData()">▶ โหลดข้อมูลตัวอย่าง</button></div></div>
+</div>
+</div>
+<div id="modal" onclick="if(event.target===this)closeModal()"><div class="modal-box">
+  <div class="flex-between" style="margin-bottom:18px;"><span style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:600;">เพิ่ม / แก้ไขสินค้า</span><button class="btn btn-ghost" onclick="closeModal()">✕</button></div>
+  <input type="hidden" id="modal-edit-sku">
+  <div class="grid-2" style="margin-bottom:12px;"><div><label>SKU *</label><input type="text" id="modal-sku" placeholder="RECT-BLK-2X1-14"></div><div><label>หน่วย</label><select id="modal-unit"><option value="เส้น">เส้น</option><option value="แผ่น">แผ่น</option><option value="กก.">กก.</option></select></div></div>
+  <div style="margin-bottom:12px;"><label>ชื่อสินค้า *</label><input type="text" id="modal-name"></div>
+  <div class="grid-2" style="margin-bottom:12px;"><div><label>ราคา/เส้น (฿) *</label><input type="number" id="modal-price"></div><div><label>🔒 น้ำหนัก (kg)</label><input type="number" id="modal-weight" step="0.01"></div></div>
+  <div style="margin-bottom:18px;"><label>🔒 ราคา/kg</label><input type="number" id="modal-pricekg"></div>
+  <div class="flex" style="justify-content:flex-end;gap:8px;"><button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button><button class="btn btn-primary" onclick="saveProduct()">💾 บันทึก</button></div>
+</div></div>
+<div id="pricing-table-modal" onclick="if(event.target===this)togglePricingTable()"><div class="pricing-table-box">
+  <div class="flex-between" style="margin-bottom:16px;"><span style="font-family:'Kanit',sans-serif;font-size:16px;font-weight:600;">📋 ตารางราคาค่าขนส่ง</span><button class="btn btn-ghost" onclick="togglePricingTable()">✕</button></div>
+  <table class="pricing-table-inner"><thead><tr><th>รถ</th><th>Zone A<br>กทม.</th><th>Zone B<br>ปริมณฑล</th><th>Zone C<br>ชลบุรี</th><th>Zone D<br>โคราช+</th><th>Zone E</th></tr></thead><tbody><tr><td>6 ล้อ (≤2ต)</td><td>฿2,500</td><td>฿3,200</td><td>฿4,500</td><td>—</td><td>—</td></tr><tr><td>10 ล้อ (≤15ต)</td><td>฿4,000</td><td>฿5,500</td><td>฿7,500</td><td>฿10,500</td><td>ประเมิน</td></tr><tr><td>10 ล้อ+เครน (≤11ต)</td><td>฿4,500</td><td>฿6,000</td><td>฿8,500</td><td>฿11,500</td><td>ประเมิน</td></tr><tr><td>12 ล้อ (≤19ต)</td><td>฿5,000</td><td>฿6,500</td><td>฿9,500</td><td>฿12,000</td><td>ประเมิน</td></tr><tr><td>รถพ่วง (≤30ต)</td><td colspan="5" style="text-align:center;">ประเมินหน้างาน</td></tr></tbody></table>
+  <p style="font-family:'Kanit',sans-serif;font-size:14px;font-weight:600;margin:16px 0 8px;">🎁 ส่วนลดค่าส่งตามยอดสั่ง</p>
+  <table class="pricing-table-inner"><thead><tr><th>ยอดสั่ง</th><th>ส่วนลด</th></tr></thead><tbody><tr><td>฿30,000+</td><td style="color:var(--green);font-weight:600;">-฿500</td></tr><tr><td>฿50,000+</td><td style="color:var(--green);font-weight:600;">-฿1,500</td></tr><tr><td>฿100,000+</td><td style="color:var(--green);font-weight:600;">-฿2,500</td></tr><tr><td>฿200,000+</td><td style="color:var(--green);font-weight:600;">-฿3,500</td></tr></tbody></table>
+</div></div>
+<div id="toast"></div>
+<script>
+const SHEET_ID='1Bh_oSgWbAaOTS96Z-p1q-ZZ6inKQ1hl5BuRrgA5aCFw';
+const CSV_URL='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent('🔍 Tool Export');
+let products=[],orderItems=[],selectedPayment={months:0,discount:9.6},isUpdating=false,plActiveCat='all',plShowIncl=false,sheetProducts=[];
+const LOGISTICS_PRICES={'6wheel':{A:2500,B:3200,C:4500,D:null,E:null},'10wheel':{A:4000,B:5500,C:7500,D:10500,E:'manual'},'10wheel-crane':{A:4500,B:6000,C:8500,D:11500,E:'manual'},'12wheel':{A:5000,B:6500,C:9500,D:12000,E:'manual'},'trailer':{A:'manual',B:'manual',C:'manual',D:'manual',E:'manual'}};
+const DISCOUNT_TIERS=[{threshold:200000,discount:3500,label:'สั่ง 2 แสน+'},{threshold:100000,discount:2500,label:'สั่ง 1 แสน+'},{threshold:50000,discount:1500,label:'สั่ง 5 หมื่น+'},{threshold:30000,discount:500,label:'สั่ง 3 หมื่น+'}];
+function splitRow(l){const c=[];let cur='',inQ=false;for(const ch of l){if(ch==='"')inQ=!inQ;else if(ch===','&&!inQ){c.push(cur.trim());cur='';}else cur+=ch;}c.push(cur.trim());return c;}
+async function loadFromSheets(){const btn=document.getElementById('syncBtn');btn.classList.add('spin');document.getElementById('syncBadge').textContent='กำลังซิงค์...';try{const r=await fetch(CSV_URL);if(!r.ok)throw new Error('HTTP '+r.status);const text=await r.text();const lines=text.split('\n');const imp=[];for(let i=2;i<lines.length;i++){if(!lines[i].trim())continue;const c=splitRow(lines[i]);if(!c[0]||!c[1])continue;const sku=(c[0]+'-'+c[2]+'-'+c[3]).replace(/[^\w\u0E00-\u0E7F\-]/g,'_').substring(0,40);imp.push({sku,name:c[1],cat:c[0],size:c[2]||'',thick:c[3]||'',len:c[4]||'',wt:parseFloat(c[5])||null,dist:parseFloat(c[6])||null,cont:parseFloat(c[7])||null,inclV:parseFloat(c[8])||null,i10:parseFloat(c[9])||null,price:parseFloat(c[7])||parseFloat(c[6])||0,unit:'เส้น',weight:c[5]||'',pricekg:''});}sheetProducts=imp;imp.forEach(sp=>{const idx=products.findIndex(p=>p.sku===sp.sku);if(idx>=0){products[idx].price=sp.price;products[idx].weight=sp.weight;products[idx].cat=sp.cat;}else products.push(sp);});renderProductTable();buildPLChips();plFilter();const now=new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});document.getElementById('syncBadge').innerHTML='ซิงค์ <span class="t">'+now+'</span><br>'+imp.length+' รายการ';showToast('✓ ซิงค์ราคาสำเร็จ! '+imp.length+' รายการ');}catch(err){document.getElementById('syncBadge').textContent='ซิงค์ไม่สำเร็จ';showToast('⚠️ '+err.message,'error');}finally{btn.classList.remove('spin');}}
+function switchTab(tab){document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['calculator','pricelist','products','import'][i]===tab));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.getElementById('tab-'+tab).classList.add('active');if(tab==='products')renderProductTable();if(tab==='pricelist'){buildPLChips();plFilter();}}
+function buildPLChips(){const src=sheetProducts.length?sheetProducts:products;const cats=[...new Set(src.map(p=>p.cat).filter(Boolean))];const row=document.getElementById('pl-chips');row.innerHTML='<button class="chip-btn active" data-cat="all" onclick="plSetCat(\'all\')">ทั้งหมด</button>';cats.forEach(cat=>{const b=document.createElement('button');b.className='chip-btn';b.dataset.cat=cat;b.textContent=cat;b.onclick=()=>plSetCat(cat);row.appendChild(b);});}
+function plSetCat(cat){plActiveCat=cat;document.querySelectorAll('.chip-btn').forEach(c=>c.classList.toggle('active',c.dataset.cat===cat));plFilter();}
+function plSetVAT(btn){plShowIncl=btn.dataset.vat==='incl';document.querySelectorAll('.vat-btn-pl').forEach(b=>b.classList.toggle('active',b===btn));plFilter();}
+function plFilter(){const src=sheetProducts.length?sheetProducts:products;if(!src.length){document.getElementById('pl-content').innerHTML='<div class="state-box"><div class="spinner"></div><p>กำลังโหลดราคา...<br><small>กด "ซิงค์ราคา" ด้านบน</small></p></div>';document.getElementById('pl-count').textContent='—';return;}const q=(document.getElementById('pl-search')?.value||'').toLowerCase().trim();const terms=q?q.split(/\s+/):[];const filtered=src.filter(p=>(plActiveCat==='all'||p.cat===plActiveCat)&&(!terms.length||terms.every(t=>(p.name+' '+p.cat+' '+p.size+' '+p.thick).toLowerCase().includes(t))));document.getElementById('pl-count').innerHTML='พบ <strong>'+filtered.length+'</strong> รายการ';if(!filtered.length){document.getElementById('pl-content').innerHTML='<div class="state-box"><p>ไม่พบสินค้า</p></div>';return;}const g={};filtered.forEach(p=>{(g[p.cat]=g[p.cat]||[]).push(p);});const frag=document.createDocumentFragment();Object.entries(g).forEach(([cat,items])=>{const sec=document.createElement('div');const hdr=document.createElement('div');hdr.className='price-cat-header';hdr.innerHTML=cat+'<span class="cat-count">'+items.length+' รายการ</span>';sec.appendChild(hdr);items.forEach(p=>sec.appendChild(buildPLCard(p)));frag.appendChild(sec);});const content=document.getElementById('pl-content');content.innerHTML='';content.appendChild(frag);}
+function fmtN(n){return(n!=null&&!isNaN(n))?Math.round(n).toLocaleString('th-TH'):'—';}
+function buildPLCard(p){const el=document.createElement('div');el.className='price-card';const price=plShowIncl?p.inclV:p.cont;const lbl=plShowIncl?'incl.VAT / เส้น':'Cont Cash excl.VAT / เส้น';const i3=p.cont?Math.round(p.cont*1.03):null;const i6=p.cont?Math.round(p.cont*1.06):null;const msg=encodeURIComponent('สอบถามราคา: '+p.name+(p.size?'\nขนาด: '+p.size:'')+(p.thick?' หนา '+p.thick+'mm':'')+(p.len?' ยาว '+p.len+'m':'')+'\nราคา: ฿'+fmtN(price)+'\n\nSteelDeal by THH');el.innerHTML='<div class="price-card-name">'+p.name+'</div><div class="price-card-tags">'+(p.size?'<span class="price-tag">📐 '+p.size+'</span>':'')+(p.thick?'<span class="price-tag">หนา '+p.thick+'mm</span>':'')+(p.len?'<span class="price-tag">ยาว '+p.len+'m</span>':'')+(p.wt?'<span class="price-tag">⚖ '+p.wt+' kg</span>':'')+'</div><div class="price-card-row"><div><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;">'+lbl+'</div>'+(price?'<div class="price-amount"><span class="sym">฿</span>'+fmtN(price)+'<span class="per">/เส้น</span></div>':'<div style="color:var(--muted);font-style:italic;font-size:13px;">ติดต่อสอบถาม</div>')+(p.dist&&p.dist!==p.cont?'<div style="font-size:11px;color:var(--muted);margin-top:2px;">Dist: ฿'+fmtN(p.dist)+'</div>':'')+'</div><a class="line-btn" href="https://line.me/R/msg/text/?'+msg+'" target="_blank"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.03 2 11c0 3.13 1.68 5.9 4.25 7.62L5.5 22l3.75-1.88c.9.25 1.78.38 2.75.38 5.52 0 10-4.03 10-9S17.52 2 12 2z"/></svg>LINE</a></div>'+((i3||i6||p.i10)&&!plShowIncl?'<div class="price-installments">'+(i3?'<div class="price-inst">3เดือน <strong>฿'+fmtN(i3)+'</strong></div>':'')+(i6?'<div class="price-inst">6เดือน <strong>฿'+fmtN(i6)+'</strong></div>':'')+(p.i10?'<div class="price-inst">10เดือน <strong>฿'+fmtN(p.i10)+'</strong></div>':'')+'</div>':'');return el;}
+function addOrderRow(){orderItems.push({id:Date.now(),sku:'',qty:1});renderOrderItems();}
+function removeOrderRow(id){orderItems=orderItems.filter(i=>i.id!==id);renderOrderItems();}
+function updateItem(id,field,value){const item=orderItems.find(i=>i.id===id);if(item){item[field]=value;renderOrderItems();}}
+function renderOrderItems(){const container=document.getElementById('order-items');if(!orderItems.length){container.innerHTML='<div class="empty-state"><div class="icon">📋</div><p>กดปุ่ม "เพิ่มสินค้า" เพื่อเริ่ม</p></div>';updateSummary();return;}container.innerHTML=orderItems.map(item=>{const p=products.find(x=>x.sku===item.sku);const wB=p?.weight?'<span class="weight-badge">🔒 '+p.weight+' kg'+(p.pricekg?' · ฿'+p.pricekg+'/kg':'')+'</span>':'';const tW=p?.weight&&item.qty?'<span class="weight-badge">รวม: '+(parseFloat(p.weight)*item.qty).toFixed(2)+' kg</span>':'';return '<div class="order-row"><div><label>สินค้า</label><select onchange="updateItem('+item.id+',\'sku\',this.value)" style="font-size:13px;"><option value="">— เลือกสินค้า —</option>'+products.map(x=>'<option value="'+x.sku+'"'+(x.sku===item.sku?' selected':'')+'>'+x.name+'</option>').join('')+'</select><div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">'+(item.sku?'<span class="sku-code">'+item.sku+'</span>':'')+wB+tW+'</div></div><div><label>จำนวน</label><div class="flex"><button class="btn-qty" onclick="updateItem('+item.id+',\'qty\',Math.max(1,'+item.qty+'-1))">−</button><input type="number" value="'+item.qty+'" min="1" onchange="updateItem('+item.id+',\'qty\',parseInt(this.value)||1)" style="text-align:center;width:70px;font-size:16px;font-weight:600;"><button class="btn-qty" onclick="updateItem('+item.id+',\'qty\','+item.qty+'+1)">+</button></div><div class="text-muted" style="margin-top:4px;">'+(p?.unit||'เส้น')+'</div></div><div><label>ราคา/เส้น</label><div style="font-family:var(--mono);font-size:15px;font-weight:600;padding:9px 0;">฿'+(p?p.price.toLocaleString():'—')+'</div></div><div><label>รวม</label><div class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">฿'+(p?(p.price*item.qty).toLocaleString():'—')+'</div></div><div><label>&nbsp;</label><button class="btn-icon" onclick="removeOrderRow('+item.id+')" title="ลบ">✕</button></div></div>';}).join('');updateSummary();}
+function quickSearch(query){const el=document.getElementById('quick-search-results');if(!query||query.length<2){el.innerHTML='';return;}const q=query.toLowerCase();const matches=products.filter(p=>p.name.toLowerCase().includes(q)||p.sku.toLowerCase().includes(q)).slice(0,8);if(!matches.length){el.innerHTML='<div class="text-muted" style="padding:10px;text-align:center;">ไม่พบสินค้า</div>';return;}el.innerHTML=matches.map(p=>'<div class="search-result-item" onclick="quickAddProduct(\''+p.sku+'\')"><div><div class="search-result-sku">'+p.sku+'</div><div class="search-result-name">'+p.name+'</div></div><div class="search-result-price">฿'+p.price.toLocaleString()+'</div></div>').join('');}
+function quickAddProduct(sku){const ex=orderItems.find(i=>i.sku===sku);if(ex){ex.qty+=1;showToast('✓ เพิ่มจำนวน +1');}else{orderItems.push({id:Date.now(),sku,qty:1});showToast('✓ เพิ่มสินค้าแล้ว');}document.getElementById('quick-search').value='';document.getElementById('quick-search-results').innerHTML='';renderOrderItems();updateTotalWeight();}
+function updateSummary(){if(isUpdating)return;isUpdating=true;try{updateTotalWeight();let sub=0,tw=0;const lines=[];for(const item of orderItems){const p=products.find(x=>x.sku===item.sku);if(!p||!item.qty)continue;const s=p.price*item.qty;const w=p.weight?parseFloat(p.weight)*item.qty:0;sub+=s;tw+=w;lines.push({name:p.name,qty:item.qty,unit:p.unit,subtotal:s,weight:w,pricekg:p.pricekg});}const log=parseFloat(document.getElementById('logistics-cost')?.value)||0;const vat=parseFloat(document.getElementById('vat-toggle')?.value)||0;const disc=selectedPayment.discount||0;const ds=Math.ceil(sub*(1-disc/100));const dv=Math.ceil((ds+log)*vat/100);const grand=ds+log+dv;const sEl=document.getElementById('internal-summary');if(lines.length===0){sEl.innerHTML='<div class="text-muted" style="text-align:center;padding:16px;">ยังไม่มีรายการ</div>';}else{sEl.innerHTML=lines.map(l=>'<div class="summary-line internal-line"><span class="label">'+l.name+' × '+l.qty+'</span><div style="text-align:right;"><div class="value">฿'+l.subtotal.toLocaleString()+'</div>'+(l.weight?'<div style="font-size:11px;color:var(--int);">'+l.weight.toFixed(2)+' kg</div>':'')+'</div></div>').join('')+(tw>0?'<div class="summary-line internal-line"><span class="label">🔒 น้ำหนักรวม</span><span class="value">'+tw.toFixed(2)+' kg</span></div>':'')+(log>0?'<div class="summary-line"><span class="label">🚚 ค่าขนส่ง</span><span class="value">฿'+log.toLocaleString()+'</span></div>':'');}document.getElementById('total-price').textContent='฿'+grand.toLocaleString();const gt=document.getElementById('grand-total-display');if(gt)gt.textContent='฿'+grand.toLocaleString();const payOpts=[{id:'0',months:0,discount:9.6},{id:'2',months:2,discount:7.5},{id:'3',months:3,discount:6.6},{id:'4',months:4,discount:5.6},{id:'6',months:6,discount:3.7},{id:'10',months:10,discount:0}];for(const opt of payOpts){const ds2=Math.ceil(sub*(1-opt.discount/100));const tot=ds2+log;if(opt.months===0){const e=document.getElementById('pay-0');if(e)e.textContent='฿'+tot.toLocaleString();}else{const te=document.getElementById('pay-'+opt.id);const se=document.getElementById('pay-'+opt.id+'-sub');const pm=Math.ceil(tot/opt.months);if(te)te.textContent='฿'+tot.toLocaleString();if(se)se.textContent='เดือนละ ฿'+pm.toLocaleString();}}}catch(e){console.error(e);}finally{isUpdating=false;}}
+function selectPayment(card){document.querySelectorAll('.payment-card').forEach(c=>c.classList.remove('active'));card.classList.add('active');selectedPayment={months:parseInt(card.dataset.months),discount:parseFloat(card.dataset.discount)};updateSummary();}
+function generateQuote(){const cn=document.getElementById('cust-name').value||'ลูกค้า';const cc=document.getElementById('cust-contact').value;const ca=document.getElementById('cust-address').value;const notes=document.getElementById('order-notes').value;const log=parseFloat(document.getElementById('logistics-cost')?.value)||0;const vat=parseFloat(document.getElementById('vat-toggle')?.value)||0;const lines=[];let sub=0;for(const item of orderItems){const p=products.find(x=>x.sku===item.sku);if(!p||!item.qty)continue;const s=p.price*item.qty;sub+=s;lines.push('  ▸ '+p.name+'\n     '+item.qty+' '+p.unit+' × ฿'+p.price.toLocaleString()+' = ฿'+s.toLocaleString());}if(!lines.length){document.getElementById('quote-output').textContent='⚠️ กรุณาเพิ่มสินค้าก่อน';return;}const disc=selectedPayment.discount;const months=selectedPayment.months;const ds=Math.ceil(sub*(1-disc/100));const v=Math.ceil((ds+log)*vat/100);const grand=ds+log+v;let payLine=months===0?'💰 เงินสด: ฿'+grand.toLocaleString()+' (ลด '+disc+'%)':'📅 ผ่อน '+months+' เดือน: ฿'+grand.toLocaleString()+'\n   เดือนละ ~฿'+Math.ceil(grand/months).toLocaleString();const now=new Date();const dateStr=now.getDate()+'/'+(now.getMonth()+1)+'/'+now.getFullYear();const discAmt=sub-ds;const priceBk=disc>0?'  💵 ราคาสินค้า: ฿'+sub.toLocaleString()+'\n     ส่วนลด '+disc+'%: -฿'+discAmt.toLocaleString()+'\n     ──────────────\n     หลังหักส่วนลด: ฿'+ds.toLocaleString()+'\n':'  💵 ราคาสินค้า: ฿'+ds.toLocaleString()+'\n';const logLine=log>0?'  🚚 ค่าขนส่ง: ฿'+log.toLocaleString()+'\n':'';const vatLine=v>0?'  🧾 VAT 7%: ฿'+v.toLocaleString()+'\n':'';const quote='━━━━━━━━━━━━━━━━━━━━━━━━\n🔩 SteelDeal ใบเสนอราคา\n━━━━━━━━━━━━━━━━━━━━━━━━\n📅 วันที่: '+dateStr+'\n👤 ลูกค้า: '+cn+'\n'+(cc?'📞 '+cc+'\n':'')+(ca?'📍 '+ca+'\n':'')+'\n📦 รายการสินค้า:\n'+lines.join('\n')+'\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n'+priceBk+logLine+vatLine+'  ──────────────\n  💰 ยอดรวมสุทธิ: ฿'+grand.toLocaleString()+'\n\n'+payLine+'\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n✅ ผ่อน 0% สูงสุด 10 เดือน\n📞 LINE: @steeldeal'+(notes?'\n📝 '+notes:'');document.getElementById('quote-output').textContent=quote;}
+function copyQuote(){navigator.clipboard.writeText(document.getElementById('quote-output').textContent).then(()=>showToast('✓ คัดลอกแล้ว!'));}
+function copyCustomerInfoTemplate(){navigator.clipboard.writeText('ยืนยันออร์เดอร์แล้วนะครับ! 🎉\n\nขอข้อมูลเพิ่มเติมหน่อยครับ:\n1. ชื่อ-นามสกุล:\n2. ที่อยู่จัดส่ง:\n3. เบอร์โทร:\n4. ต้องการใบกำกับภาษี? (ใช่/ไม่ใช่)\n\nขอบคุณครับ! 🙏').then(()=>showToast('✓ คัดลอก template แล้ว!'));}
+function recommendTruck(wt){if(wt<=2)return'6wheel';if(wt<=11)return'10wheel-crane';if(wt<=15)return'10wheel';if(wt<=19)return'12wheel';if(wt<=30)return'trailer';return null;}
+function updateTotalWeight(){let tw=0;for(const item of orderItems){const p=products.find(x=>x.sku===item.sku);if(p?.weight&&item.qty)tw+=parseFloat(p.weight)*item.qty;}const tons=tw/1000;document.getElementById('total-weight-display').textContent=tons.toFixed(2)+' ตัน';const rec=recommendTruck(tons);if(rec&&tons>0){const sel=document.getElementById('truck-type');if(!sel.value){sel.value=rec;showToast('🚚 แนะนำ: '+sel.options[sel.selectedIndex]?.text);calculateLogistics();}}}
+function calculateLogistics(){const truck=document.getElementById('truck-type')?.value;const prov=document.getElementById('destination-province')?.value;const helper=document.getElementById('helper-checkbox')?.checked||false;const costEl=document.getElementById('logistics-cost');if(!truck||!prov){costEl.value=0;updateSummary();document.getElementById('logistics-breakdown').style.display='none';return;}const base=LOGISTICS_PRICES[truck][prov];if(base==='manual'||base===null){document.getElementById('logistics-breakdown').style.display='none';document.getElementById('manual-logistics').style.display='block';const manual=parseFloat(document.getElementById('logistics-manual').value)||0;costEl.value=manual+(helper?200:0);updateSummary();return;}document.getElementById('manual-logistics').style.display='none';document.getElementById('logistics-breakdown').style.display='block';const hc=helper?200:0;const bd=base+hc;let ot=0;for(const item of orderItems){const p=products.find(x=>x.sku===item.sku);if(p&&item.qty)ot+=p.price*item.qty;}const di=calculateLogisticsDiscount(ot);const final=Math.max(0,bd-di.discount);document.getElementById('logistics-base').textContent='฿'+base.toLocaleString();document.getElementById('helper-line').style.display=helper?'flex':'none';document.getElementById('logistics-before-discount').textContent='฿'+bd.toLocaleString();if(di.discount>0){document.getElementById('discount-line').style.display='flex';document.getElementById('discount-label').textContent='🎁 '+di.label+':';document.getElementById('logistics-discount').textContent='-฿'+di.discount.toLocaleString();}else{document.getElementById('discount-line').style.display='none';}if(di.nextUnlockMessage){document.getElementById('next-unlock-box').style.display='block';document.getElementById('next-unlock-message').textContent=di.nextUnlockMessage;}else{document.getElementById('next-unlock-box').style.display='none';}document.getElementById('logistics-final').textContent='฿'+final.toLocaleString();costEl.value=final;updateSummary();}
+function calculateLogisticsDiscount(ot){let cur={threshold:0,discount:0,label:null};for(const tier of DISCOUNT_TIERS){if(ot>=tier.threshold){cur=tier;break;}}let next=null;for(let i=DISCOUNT_TIERS.length-1;i>=0;i--){if(ot<DISCOUNT_TIERS[i].threshold){next=DISCOUNT_TIERS[i];break;}}let msg=null;if(next)msg='💡 เพิ่มอีก ฿'+(next.threshold-ot).toLocaleString()+' → ลดค่าส่งได้อีก ฿'+(next.discount-cur.discount).toLocaleString()+'!';else if(cur.discount>0)msg='⭐ ได้ส่วนลดค่าส่งสูงสุดแล้ว!';return{discount:cur.discount,label:cur.label,nextUnlockMessage:msg};}
+function updateManualLogistics(){const m=parseFloat(document.getElementById('logistics-manual').value)||0;const h=document.getElementById('helper-checkbox').checked;document.getElementById('logistics-cost').value=m+(h?200:0);updateSummary();}
+function togglePricingTable(){const m=document.getElementById('pricing-table-modal');m.classList.toggle('open');}
+function renderProductTable(filter=''){const tbody=document.getElementById('products-tbody');document.getElementById('product-count').textContent=products.length;let f=products;if(filter){const q=filter.toLowerCase();f=products.filter(p=>p.sku.toLowerCase().includes(q)||p.name.toLowerCase().includes(q));}if(!f.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">📦</div><p>ไม่พบสินค้า</p></div></td></tr>';return;}tbody.innerHTML=f.map(p=>'<tr><td><span class="sku-code">'+p.sku+'</span></td><td>'+p.name+'</td><td><span class="text-mono">฿'+p.price.toLocaleString()+'</span></td><td>'+p.unit+'</td><td><span class="internal-val">'+(p.weight?p.weight+' kg':'—')+'</span></td><td><span class="internal-val">'+(p.pricekg?'฿'+p.pricekg:'—')+'</span></td><td><div class="action-btns"><button class="btn btn-ghost" style="padding:5px 10px;font-size:12px;" onclick="editProduct(\''+p.sku+'\')">แก้ไข</button><button class="btn btn-danger" style="padding:5px 10px;font-size:12px;" onclick="deleteProduct(\''+p.sku+'\')">ลบ</button></div></td></tr>').join('');}
+function filterProducts(){renderProductTable(document.getElementById('search-products').value);}
+function openAddModal(){['modal-edit-sku','modal-sku','modal-name','modal-price','modal-weight','modal-pricekg'].forEach(id=>document.getElementById(id).value='');document.getElementById('modal-unit').value='เส้น';document.getElementById('modal').classList.add('open');}
+function editProduct(sku){const p=products.find(x=>x.sku===sku);if(!p)return;document.getElementById('modal-edit-sku').value=sku;document.getElementById('modal-sku').value=p.sku;document.getElementById('modal-name').value=p.name;document.getElementById('modal-price').value=p.price;document.getElementById('modal-unit').value=p.unit;document.getElementById('modal-weight').value=p.weight||'';document.getElementById('modal-pricekg').value=p.pricekg||'';document.getElementById('modal').classList.add('open');}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+function saveProduct(){const sku=document.getElementById('modal-sku').value.trim().toUpperCase();const name=document.getElementById('modal-name').value.trim();const price=parseFloat(document.getElementById('modal-price').value);const unit=document.getElementById('modal-unit').value;const weight=document.getElementById('modal-weight').value;const pricekg=document.getElementById('modal-pricekg').value;if(!sku||!name||!price){showToast('⚠️ กรุณากรอก SKU, ชื่อ และราคา','error');return;}const editSku=document.getElementById('modal-edit-sku').value;const idx=products.findIndex(p=>p.sku===(editSku||sku));const product={sku,name,price,unit,weight:weight||'',pricekg:pricekg||''};if(idx>=0)products[idx]={...products[idx],...product};else products.push(product);renderProductTable();closeModal();showToast('✓ บันทึกสำเร็จ!');}
+function deleteProduct(sku){if(!confirm('ลบ "'+sku+'" ?'))return;products=products.filter(p=>p.sku!==sku);renderProductTable();showToast('✓ ลบแล้ว');}
+function importCSV(){const text=document.getElementById('csv-paste').value.trim();if(!text){showToast('⚠️ ไม่มีข้อมูล','error');return;}processCSV(text);}
+function handleFileImport(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{document.getElementById('csv-paste').value=e.target.result;processCSV(e.target.result);};reader.readAsText(file,'UTF-8');}
+function processCSV(text){const mode=document.getElementById('import-mode').value;const lines=text.trim().split('\n').filter(l=>l.trim());const dataLines=lines[0].toLowerCase().includes('sku')?lines.slice(1):lines;let added=0,updated=0,skipped=0;if(mode==='replace')products=[];for(const line of dataLines){const parts=line.split(',').map(p=>p.replace(/^"|"$/g,'').trim());if(parts.length<3){skipped++;continue;}const[sku,name,priceStr,unit='เส้น',weight='',pricekg='']=parts;const price=parseFloat(priceStr);if(!sku||!name||isNaN(price)){skipped++;continue;}const idx=products.findIndex(p=>p.sku===sku.toUpperCase());const product={sku:sku.toUpperCase(),name,price,unit,weight,pricekg};if(idx>=0){products[idx]=product;updated++;}else{products.push(product);added++;}}renderProductTable();document.getElementById('import-result').innerHTML='<div style="background:var(--grn-lt);border:1px solid #86EFAC;border-radius:6px;padding:12px;font-size:13px;color:var(--green);margin-top:10px;">✅ เพิ่ม: <strong>'+added+'</strong> | อัปเดต: <strong>'+updated+'</strong> | ข้าม: <strong>'+skipped+'</strong><br><span style="color:var(--muted);">ฐานข้อมูล: '+products.length+' รายการ</span></div>';showToast('✓ นำเข้า '+(added+updated)+' รายการ!');}
+function exportProducts(){const h='SKU,Name,PricePerPiece,Unit,WeightPerPiece,PricePerKG\n';const r=products.map(p=>p.sku+',"'+p.name+'",'+p.price+','+p.unit+','+(p.weight||'')+','+(p.pricekg||'')).join('\n');downloadFile(h+r,'SteelDeal_Products.csv','text/csv;charset=utf-8;');showToast('✓ Export แล้ว!');}
+function downloadTemplate(){downloadFile('SKU,Name,PricePerPiece,Unit,WeightPerPiece,PricePerKG\nRECT-BLK-2X1-14,แป๊บแบนดำ 2"x1" หนา 1.4mm,280,เส้น,8.35,33','SteelDeal_Template.csv','text/csv;charset=utf-8;');}
+function loadSampleData(){products=[{sku:'RECT-BLK-2X1-12',name:'แป๊บแบนดำ 2"x1" หนา 1.2mm',price:209,unit:'เส้น',weight:'7.24',pricekg:'28.9'},{sku:'RECT-GI-2X1-12',name:'แป๊บแบน GI 2"x1" หนา 1.2mm',price:222,unit:'เส้น',weight:'7.65',pricekg:'29'},{sku:'DB-16-10M',name:'ข้ออ้อย DB16 SD40T 10m',price:331,unit:'เส้น',weight:'15.78',pricekg:'21'},{sku:'ANG-50X50-T4',name:'เหล็กฉาก 50x50x4mm 6m',price:440,unit:'เส้น',weight:'17.73',pricekg:'24.8'}];renderProductTable();showToast('✓ โหลดตัวอย่าง '+products.length+' รายการ');}
+function downloadFile(content,filename,mimeType){const blob=new Blob(['\uFEFF'+content],{type:mimeType});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);}
+function showToast(msg,type='success'){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';t.style.borderLeftColor=type==='error'?'var(--red)':'var(--green)';setTimeout(()=>t.style.display='none',2800);}
+const dz=document.getElementById('drop-zone');
+dz?.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='var(--red)';});
+dz?.addEventListener('dragleave',()=>{dz.style.borderColor='var(--border2)';});
+dz?.addEventListener('drop',e=>{e.preventDefault();dz.style.borderColor='var(--border2)';const file=e.dataTransfer.files[0];if(!file)return;const reader=new FileReader();reader.onload=ev=>{document.getElementById('csv-paste').value=ev.target.result;processCSV(ev.target.result);};reader.readAsText(file,'UTF-8');});
+loadFromSheets();
+</script>
+</body>
+</html>
