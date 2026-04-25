@@ -1208,7 +1208,7 @@ function updateSummary() {
     if (gtEl) gtEl.textContent = '฿' + grandTotal.toLocaleString();
 
     // Payment cards — gross-up formula: price = Cont ÷ (1 - fee%)
-    // Bank transfer: Cont × 0.98 (2% discount)
+    // Bank transfer: Cont × 1.00 (no adjustment — this is the base SteelDeal price)
     // Card types: Cont ÷ (1 - fee/100) so net after bank charges = Cont
     const payDefs = [
       { id:'transfer', months:0, fee:0,     type:'transfer' },
