@@ -639,42 +639,58 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
         <div class="panel-body">
           <div class="section-internal" style="font-size:11px;margin-bottom:10px;">🔒 ราคาที่แสดงคือราคาสุทธิลูกค้า — ค่าธนาคารบวกในราคาสินค้าแล้ว ไม่แสดงแยก</div>
           <div class="payment-grid" id="payment-options" style="grid-template-columns:repeat(4,1fr);">
-            <div class="payment-card active" data-months="0" data-fee="0" data-type="transfer" onclick="selectPayment(this)">
-              <div class="months">🏦 โอนเงิน <span style="background:var(--green);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;">คุ้มสุด!</span></div>
-              <div class="per-month-amount" id="pay-transfer">฿0</div>
-              <div class="discount">ราคาปกติ</div>
-            </div>
-            <div class="payment-card" data-months="0" data-fee="3.21" data-type="card" onclick="selectPayment(this)">
-              <div class="months">💳 บัตรเครดิต เงินสด</div>
-              <div class="per-month-amount" id="pay-card">฿0</div>
-              <div class="amount" style="font-size:10px;color:var(--muted);">fee 3.21%</div>
-            </div>
-            <div class="payment-card" data-months="6" data-fee="9.21" data-type="card" onclick="selectPayment(this)">
-              <div class="months">ผ่อน 6 เดือน</div>
-              <div class="per-month-amount" id="pay-6">฿0</div>
-              <div class="amount" id="pay-6-sub">เดือนละ ฿0</div>
-            </div>
+            <!-- ผ่อน 10 เดือน — ราคาปกติ (anchor) -->
             <div class="payment-card" data-months="10" data-fee="13.21" data-type="card" onclick="selectPayment(this)">
-              <div class="months">ผ่อน 10 เดือน <span style="background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;">สูงสุด</span></div>
+              <div class="months">ผ่อน 10 เดือน <span style="background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;">ราคาปกติ</span></div>
               <div class="per-month-amount" id="pay-10">฿0</div>
               <div class="amount" id="pay-10-sub">เดือนละ ฿0</div>
             </div>
+            <!-- โอนเงิน -->
+            <div class="payment-card active" data-months="0" data-fee="0" data-type="transfer" onclick="selectPayment(this)">
+              <div class="months">💳 โอนเงิน <span style="background:var(--green);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;">คุ้มสุด!</span></div>
+              <div class="per-month-amount" id="pay-transfer">฿0</div>
+              <div class="discount" id="pay-transfer-save">ประหยัด ~13%</div>
+            </div>
+            <!-- บัตรเครดิต -->
+            <div class="payment-card" data-months="0" data-fee="3.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">💳 บัตรเครดิต เงินสด</div>
+              <div class="per-month-amount" id="pay-card">฿0</div>
+              <div class="discount" id="pay-card-save">ประหยัด ~10%</div>
+              <div class="amount">fee 3.21%</div>
+            </div>
+            <!-- ผ่อน 2 เดือน -->
             <div class="payment-card" data-months="2" data-fee="5.21" data-type="card" onclick="selectPayment(this)">
               <div class="months">ผ่อน 2 เดือน</div>
               <div class="per-month-amount" id="pay-2">฿0</div>
               <div class="amount" id="pay-2-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-2-save">ประหยัด ~8%</div>
             </div>
+            <!-- ผ่อน 3 เดือน -->
             <div class="payment-card" data-months="3" data-fee="6.21" data-type="card" onclick="selectPayment(this)">
               <div class="months">ผ่อน 3 เดือน</div>
               <div class="per-month-amount" id="pay-3">฿0</div>
               <div class="amount" id="pay-3-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-3-save">ประหยัด ~7%</div>
             </div>
+            <!-- ผ่อน 4 เดือน -->
             <div class="payment-card" data-months="4" data-fee="7.21" data-type="card" onclick="selectPayment(this)">
               <div class="months">ผ่อน 4 เดือน</div>
               <div class="per-month-amount" id="pay-4">฿0</div>
               <div class="amount" id="pay-4-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-4-save">ประหยัด ~6%</div>
             </div>
-            <div class="payment-card" data-months="0" data-fee="0" data-type="transfer-only" onclick="selectPayment(this)" style="opacity:0;pointer-events:none;"></div>
+            <!-- ผ่อน 6 เดือน -->
+            <div class="payment-card" data-months="6" data-fee="9.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">ผ่อน 6 เดือน</div>
+              <div class="per-month-amount" id="pay-6">฿0</div>
+              <div class="amount" id="pay-6-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-6-save">ประหยัด ~4%</div>
+            </div>
+            <!-- hidden transfer-only -->
+            <div class="payment-card" data-months="0" data-fee="0" data-type="transfer-only" onclick="selectPayment(this)" style="display:none;">
+              <div class="months">โอนเงินเท่านั้น</div>
+              <div class="per-month-amount">฿0</div>
+            </div>
           </div>
         </div>
       </div>
@@ -1231,6 +1247,15 @@ function updateSummary() {
       const se = document.getElementById('pay-' + opt.id + '-sub');
       if (te) te.textContent = '฿' + tot.toLocaleString();
       if (se && opt.months > 0) se.textContent = 'เดือนละ ฿' + Math.ceil(tot/opt.months).toLocaleString();
+      var saveEl = document.getElementById('pay-' + opt.id + '-save');
+      if (saveEl) {
+        var base10El = document.getElementById('pay-10');
+        var base10Val = base10El ? parseFloat(base10El.textContent.replace(/[฿,]/g,'')) : 0;
+        if (base10Val > 0 && tot > 0 && opt.id !== '10') {
+          var savePct = Math.round((1 - tot / base10Val) * 100);
+          saveEl.textContent = savePct > 0 ? 'ประหยัด ' + savePct + '%' : '';
+        }
+      }
     }
   } catch(e) { console.error(e); } finally { isUpdating = false; }
 }
