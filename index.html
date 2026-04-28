@@ -638,39 +638,53 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
         <div class="panel-header"><span class="panel-title">ตัวเลือกการชำระเงิน</span></div>
         <div class="panel-body">
           <div class="section-internal" style="font-size:11px;margin-bottom:10px;">🔒 ราคาที่แสดงคือราคาสุทธิลูกค้า — ค่าธนาคารบวกในราคาสินค้าแล้ว ไม่แสดงแยก</div>
-          <div class="payment-grid" id="payment-options" style="grid-template-columns:repeat(4,1fr);">
+          <div class="payment-grid" id="payment-options" style="grid-template-columns:repeat(4,1fr); gap:6px;">
+            <!-- โอนเงิน — คุ้มสุด -->
+            <div class="payment-card active" data-months="0" data-fee="0" data-type="transfer" onclick="selectPayment(this)">
+              <div class="months">💳 โอนเงิน <span style="background:var(--green);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;">คุ้มสุด!</span></div>
+              <div class="per-month-amount" id="pay-transfer">฿0</div>
+              <div class="discount" id="pay-transfer-save">ประหยัด ~13%</div>
+            </div>
             <!-- ผ่อน 10 เดือน — ราคาปกติ (anchor) -->
             <div class="payment-card" data-months="10" data-fee="13.21" data-type="card" onclick="selectPayment(this)">
               <div class="months">ผ่อน 10 เดือน <span style="background:var(--red);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;">ราคาปกติ</span></div>
               <div class="per-month-amount" id="pay-10">฿0</div>
               <div class="amount" id="pay-10-sub">เดือนละ ฿0</div>
             </div>
-            <!-- โอนเงิน -->
-            <div class="payment-card active" data-months="0" data-fee="0" data-type="transfer" onclick="selectPayment(this)">
-              <div class="months">💳 โอนเงิน <span style="background:var(--green);color:#fff;font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;">คุ้มสุด!</span></div>
-              <div class="per-month-amount" id="pay-transfer">฿0</div>
-              <div class="discount" id="pay-transfer-save">ประหยัด ~13%</div>
+            <!-- ผ่อน 9 เดือน -->
+            <div class="payment-card" data-months="9" data-fee="12.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">ผ่อน 9 เดือน</div>
+              <div class="per-month-amount" id="pay-9">฿0</div>
+              <div class="amount" id="pay-9-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-9-save">ประหยัด ~1%</div>
             </div>
-            <!-- บัตรเครดิต -->
-            <div class="payment-card" data-months="0" data-fee="3.21" data-type="card" onclick="selectPayment(this)">
-              <div class="months">💳 บัตรเครดิต เงินสด</div>
-              <div class="per-month-amount" id="pay-card">฿0</div>
-              <div class="discount" id="pay-card-save">ประหยัด ~10%</div>
-              <div class="amount">fee 3.21%</div>
+            <!-- ผ่อน 8 เดือน -->
+            <div class="payment-card" data-months="8" data-fee="11.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">ผ่อน 8 เดือน</div>
+              <div class="per-month-amount" id="pay-8">฿0</div>
+              <div class="amount" id="pay-8-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-8-save">ประหยัด ~2%</div>
             </div>
-            <!-- ผ่อน 2 เดือน -->
-            <div class="payment-card" data-months="2" data-fee="5.21" data-type="card" onclick="selectPayment(this)">
-              <div class="months">ผ่อน 2 เดือน</div>
-              <div class="per-month-amount" id="pay-2">฿0</div>
-              <div class="amount" id="pay-2-sub">เดือนละ ฿0</div>
-              <div class="discount" id="pay-2-save">ประหยัด ~8%</div>
+            <!-- ผ่อน 7 เดือน -->
+            <div class="payment-card" data-months="7" data-fee="10.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">ผ่อน 7 เดือน</div>
+              <div class="per-month-amount" id="pay-7">฿0</div>
+              <div class="amount" id="pay-7-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-7-save">ประหยัด ~3%</div>
             </div>
-            <!-- ผ่อน 3 เดือน -->
-            <div class="payment-card" data-months="3" data-fee="6.21" data-type="card" onclick="selectPayment(this)">
-              <div class="months">ผ่อน 3 เดือน</div>
-              <div class="per-month-amount" id="pay-3">฿0</div>
-              <div class="amount" id="pay-3-sub">เดือนละ ฿0</div>
-              <div class="discount" id="pay-3-save">ประหยัด ~7%</div>
+            <!-- ผ่อน 6 เดือน -->
+            <div class="payment-card" data-months="6" data-fee="9.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">ผ่อน 6 เดือน</div>
+              <div class="per-month-amount" id="pay-6">฿0</div>
+              <div class="amount" id="pay-6-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-6-save">ประหยัด ~4%</div>
+            </div>
+            <!-- ผ่อน 5 เดือน -->
+            <div class="payment-card" data-months="5" data-fee="8.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">ผ่อน 5 เดือน</div>
+              <div class="per-month-amount" id="pay-5">฿0</div>
+              <div class="amount" id="pay-5-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-5-save">ประหยัด ~5%</div>
             </div>
             <!-- ผ่อน 4 เดือน -->
             <div class="payment-card" data-months="4" data-fee="7.21" data-type="card" onclick="selectPayment(this)">
@@ -679,12 +693,26 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
               <div class="amount" id="pay-4-sub">เดือนละ ฿0</div>
               <div class="discount" id="pay-4-save">ประหยัด ~6%</div>
             </div>
-            <!-- ผ่อน 6 เดือน -->
-            <div class="payment-card" data-months="6" data-fee="9.21" data-type="card" onclick="selectPayment(this)">
-              <div class="months">ผ่อน 6 เดือน</div>
-              <div class="per-month-amount" id="pay-6">฿0</div>
-              <div class="amount" id="pay-6-sub">เดือนละ ฿0</div>
-              <div class="discount" id="pay-6-save">ประหยัด ~4%</div>
+            <!-- ผ่อน 3 เดือน -->
+            <div class="payment-card" data-months="3" data-fee="6.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">ผ่อน 3 เดือน</div>
+              <div class="per-month-amount" id="pay-3">฿0</div>
+              <div class="amount" id="pay-3-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-3-save">ประหยัด ~7%</div>
+            </div>
+            <!-- ผ่อน 2 เดือน -->
+            <div class="payment-card" data-months="2" data-fee="5.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">ผ่อน 2 เดือน</div>
+              <div class="per-month-amount" id="pay-2">฿0</div>
+              <div class="amount" id="pay-2-sub">เดือนละ ฿0</div>
+              <div class="discount" id="pay-2-save">ประหยัด ~8%</div>
+            </div>
+            <!-- บัตรเครดิต -->
+            <div class="payment-card" data-months="0" data-fee="3.21" data-type="card" onclick="selectPayment(this)">
+              <div class="months">💳 บัตรเครดิต เงินสด</div>
+              <div class="per-month-amount" id="pay-card">฿0</div>
+              <div class="discount" id="pay-card-save">ประหยัด ~10%</div>
+              <div class="amount">fee 3.21%</div>
             </div>
             <!-- hidden transfer-only -->
             <div class="payment-card" data-months="0" data-fee="0" data-type="transfer-only" onclick="selectPayment(this)" style="display:none;">
@@ -1227,13 +1255,17 @@ function updateSummary() {
     // Bank transfer: Cont × 1.00 (no adjustment — this is the base SteelDeal price)
     // Card types: Cont ÷ (1 - fee/100) so net after bank charges = Cont
     const payDefs = [
-      { id:'transfer', months:0, fee:0,     type:'transfer' },
-      { id:'card',     months:0, fee:3.21,  type:'card' },
-      { id:'2',        months:2, fee:5.21,  type:'card' },
-      { id:'3',        months:3, fee:6.21,  type:'card' },
-      { id:'4',        months:4, fee:7.21,  type:'card' },
-      { id:'6',        months:6, fee:9.21,  type:'card' },
-      { id:'10',       months:10,fee:13.21, type:'card' },
+      { id:'transfer', months:0,  fee:0,     type:'transfer' },
+      { id:'10',       months:10, fee:13.21, type:'card' },
+      { id:'9',        months:9,  fee:12.21, type:'card' },
+      { id:'8',        months:8,  fee:11.21, type:'card' },
+      { id:'7',        months:7,  fee:10.21, type:'card' },
+      { id:'6',        months:6,  fee:9.21,  type:'card' },
+      { id:'5',        months:5,  fee:8.21,  type:'card' },
+      { id:'4',        months:4,  fee:7.21,  type:'card' },
+      { id:'3',        months:3,  fee:6.21,  type:'card' },
+      { id:'2',        months:2,  fee:5.21,  type:'card' },
+      { id:'card',     months:0,  fee:3.21,  type:'card' },
     ];
     for (const opt of payDefs) {
       let grossPrice;
@@ -1312,10 +1344,28 @@ function generateQuote() {
     payLine = '📅 ผ่อน ' + months + ' เดือน: ฿' + grand.toLocaleString() + '\n   เดือนละ ~฿' + pm.toLocaleString();
   }
   const now = new Date(); const dateStr = now.getDate() + '/' + (now.getMonth()+1) + '/' + now.getFullYear();
-  const priceBk = '  💵 ราคาสินค้า: ฿' + grand.toLocaleString() + '\n';
-  const logLine = logistics>0 ? '  🚚 ค่าขนส่ง: ฿' + logistics.toLocaleString() + '\n' : '';
-  const vatLine = vat>0 ? '  🧾 VAT 7%:  ฿' + vat.toLocaleString() + '\n' : '';
-  const quote = '━━━━━━━━━━━━━━━━━━━━━━━━\n🔩 SteelDeal ใบเสนอราคา\n━━━━━━━━━━━━━━━━━━━━━━━━\n📅 วันที่: ' + dateStr + '\n👤 ลูกค้า: ' + custName + '\n' + (custCtx?'📞 '+custCtx+'\n':'') + (custAddr?'📍 '+custAddr+'\n':'') + '\n📦 รายการสินค้า:\n' + lines.join('\n') + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n' + priceBk + logLine + vatLine + '  ──────────────────────\n  💰 ยอดรวมสุทธิ: ฿' + grand.toLocaleString() + '\n\n' + payLine + '\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n✅ บริการของเรา:\n  • ผ่อน 0% สูงสุด 10 เดือน\n  • ส่งถึงที่ครบวงจร\n  • EEC · Bang Phli\n\n📞 LINE: @steeldeal' + (notes?'\n\n📝 หมายเหตุ: '+notes:'');
+  // Build price block — old format style (clear breakdown)
+  const discountPct = type === 'transfer' ? 0 : fee; // fee % baked into gross price
+  const discountAmt = grossSub - subtotalGoods; // ฿ amount added for bank fee
+  // For transfer (cheapest): show as "ส่วนลด" from ผ่อน10 anchor
+  const anchor10 = Math.ceil(subtotalGoods / (1 - 13.21/100));
+  const savingsVsAnchor = anchor10 - subtotalGoods; // how much saved vs ผ่อน10
+
+  let priceBlock = '';
+  priceBlock += '  💵 ราคาสินค้า: ฿' + subtotalGoods.toLocaleString() + '\n';
+  if (discountAmt > 0) {
+    priceBlock += '  💳 ค่าธนาคาร ' + fee.toFixed(2) + '%: +฿' + discountAmt.toLocaleString() + '\n';
+    priceBlock += '  รวมค่าธนาคาร: ฿' + grossSub.toLocaleString() + '\n';
+  } else if (type === 'transfer' && savingsVsAnchor > 0) {
+    const savePct = (savingsVsAnchor / anchor10 * 100).toFixed(1);
+    priceBlock += '  ✂️ ประหยัดจากผ่อน10: -฿' + savingsVsAnchor.toLocaleString() + ' (' + savePct + '%)\n';
+  }
+  if (logistics > 0) priceBlock += '  🚚 ค่าขนส่ง: ฿' + logistics.toLocaleString() + '\n';
+  if (vat > 0) priceBlock += '  🧾 VAT 7%: ฿' + vat.toLocaleString() + '\n';
+  priceBlock += '  ──────────────────────\n';
+  priceBlock += '  💰 ยอดรวมสุทธิ: ฿' + grand.toLocaleString() + '\n';
+
+  const quote = '━━━━━━━━━━━━━━━━━━━━━━━━\n🔩 SteelDeal ใบเสนอราคา\n━━━━━━━━━━━━━━━━━━━━━━━━\n📅 วันที่: ' + dateStr + '\n👤 ลูกค้า: ' + custName + '\n' + (custCtx?'📞 '+custCtx+'\n':'') + (custAddr?'📍 '+custAddr+'\n':'') + '\n📦 รายการสินค้า:\n' + lines.join('\n') + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n' + priceBlock + '\n' + payLine + '\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n✅ บริการของเรา:\n  • ผ่อน 0% สูงสุด 10 เดือน\n  • ส่งถึงที่ครบวงจร\n  • EEC · Bang Phli\n\n📞 LINE: @steeldeal\n📘 FB: SteelDeal' + (notes?'\n\n📝 หมายเหตุ: '+notes:'');
   document.getElementById('quote-output').textContent = quote;
 }
 function copyQuote() {
