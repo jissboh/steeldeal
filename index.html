@@ -1399,7 +1399,14 @@ function updateTotalWeight() {
   const rec = recommendTruck(tons);
   if (rec && tons > 0) {
     const sel = document.getElementById('truck-type');
-    if (!sel.value) { sel.value = rec; showToast('🚚 แนะนำรถ: ' + sel.options[sel.selectedIndex]?.text); calculateLogistics(); }
+    if (sel.value !== rec) {
+      sel.value = rec;
+      showToast('🚚 แนะนำรถ: ' + sel.options[sel.selectedIndex]?.text);
+      calculateLogistics();
+    }
+  } else if (tons === 0) {
+    const sel = document.getElementById('truck-type');
+    if (sel.value) { sel.value = ''; calculateLogistics(); }
   }
 }
 function calculateLogistics() {
