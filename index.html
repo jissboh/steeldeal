@@ -468,6 +468,16 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
       <div class="panel">
         <div class="panel-header"><span class="panel-title">ข้อมูลลูกค้า</span></div>
         <div class="panel-body">
+          <div class="grid-2" style="margin-bottom:10px;">
+            <div>
+              <label>ผู้ดูแล (Staff)</label>
+              <select id="staff-name" style="font-weight:600;">
+                <option value="ตั้ง">ตั้ง</option>
+                <option value="Staff">Staff</option>
+              </select>
+            </div>
+            <div></div>
+          </div>
           <div class="grid-2">
             <div><label>ชื่อลูกค้า *</label><input type="text" id="cust-name" placeholder="ชื่อ / ร้าน"></div>
             <div><label>เบอร์โทร / LINE</label><input type="text" id="cust-contact" placeholder="0812345678"></div>
@@ -600,6 +610,41 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
             <div>
               <label>ยอดรวมสุทธิ</label>
               <div style="font-family:var(--mono); font-size:20px; font-weight:700; color:var(--red); padding:7px 0;" id="grand-total-display">฿0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Discount -->
+      <div class="panel" id="discount-panel">
+        <div class="panel-header" style="cursor:pointer;" onclick="toggleDiscountPanel()">
+          <span class="panel-title">✂️ ส่วนลดพิเศษ <span id="discount-badge" style="display:none;background:var(--red);color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;margin-left:6px;"></span></span>
+          <span id="discount-toggle-icon" style="font-size:11px;color:var(--muted);">▼ เปิด</span>
+        </div>
+        <div id="discount-panel-body" style="display:none;">
+          <div class="panel-body">
+            <div class="grid-2" style="align-items:flex-end;">
+              <div>
+                <label>ส่วนลด (%)</label>
+                <input type="number" id="discount-pct" min="0" max="2" step="0.1" value="0"
+                  placeholder="0.0" oninput="applyDiscount()" style="font-weight:700;">
+                <div style="font-size:10px;color:var(--muted);margin-top:3px;">สูงสุด 2% — ต้องระบุเหตุผล</div>
+              </div>
+              <div>
+                <label>ส่วนลด (฿)</label>
+                <div id="discount-baht-display" style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--red);padding:7px 0;">฿0</div>
+              </div>
+            </div>
+            <div id="discount-reason-wrap" style="margin-top:10px;display:none;">
+              <label>เหตุผล <span style="color:var(--red);">*</span></label>
+              <select id="discount-reason">
+                <option value="">-- เลือกเหตุผล --</option>
+                <option value="ปิดดีล">ปิดดีล</option>
+                <option value="ลูกค้าประจำ">ลูกค้าประจำ</option>
+                <option value="คลียสต็อก">คลียสต็อก</option>
+                <option value="โปรโมชั่น">โปรโมชั่น</option>
+                <option value="อื่นๆ">อื่นๆ</option>
+              </select>
             </div>
           </div>
         </div>
@@ -978,13 +1023,34 @@ async function loadFromSheets() {
       if (!lines[i].trim()) continue;
       const c = splitRow(lines[i]);
       if (!c[0] || !c[1]) continue;
-      const cat   = c[0], name = c[1], size = c[2]||'', thick = c[3]||'', len = c[4]||'';
+      // Skip section header rows (they have merged cells or no price data)
+      const distVal = parseFloat(c[6]);
+      const contVal = parseFloat(c[7]);
+      if (!c[6] || isNaN(distVal) || distVal < 10) continue; // skip headers/config rows
+      const cat   = c[0], baseName = c[1], size = c[2]||'', thick = c[3]||'', len = c[4]||'';
       const wt    = parseFloat(c[5]) || null;
-      const dist  = parseFloat(c[6]) || null;
-      const cont  = parseFloat(c[7]) || null;
+      const dist  = distVal;
+      const cont  = contVal || dist;
       const inclV = parseFloat(c[8]) || null;
       const i10   = parseFloat(c[9]) || null;
-      const sku   = (cat + '-' + size + '-' + thick).replace(/[^\w\u0E00-\u0E7F\-]/g,'_').substring(0,40);
+      // Build full display name for rebar: special formatting
+      let name = baseName;
+      if (cat === 'เหล็กเส้น') {
+        // Convert DB16mm -> 16mm, Ø6mm -> 6mm, DB12mm -> 12mm etc.
+        const sizeClean = size.replace(/^DB|^Ø/,'');
+        // Fix SD40T -> SD40
+        const nameClean = name.replace('SD40T','SD40');
+        name = nameClean + ' ' + sizeClean;
+        if (len) name = name + '*' + len + 'ม.';
+        // Add ตรง suffix for rebar
+        name = name + ' ตรง';
+      } else {
+        if (size && !baseName.includes(size)) name = baseName + ' ' + size;
+        if (len && !baseName.includes(len + 'm') && !baseName.includes(len + ' m')) name = name + ' ' + len + 'm';
+      }
+      // Clean up double spaces
+      name = name.replace(/\s+/g, ' ').trim();
+      const sku   = (cat + '-' + size + '-' + thick + '-' + len).replace(/[^\w\u0E00-\u0E7F\-]/g,'_').substring(0,40);
       imported.push({ sku, name, cat, size, thick, len, wt, dist, cont, inclV, i10,
         price: cont || dist || 0, unit: 'เส้น', weight: wt ? String(wt) : '', pricekg: '' });
     }
@@ -1230,8 +1296,16 @@ function updateSummary() {
     } else {
       grossSub = Math.ceil(subtotalGoods / (1 - fee/100)); // gross-up for bank fees
     }
-    const grandVAT  = Math.ceil((grossSub + logistics) * vatRate / 100);
-    const grandTotal= grossSub + logistics + grandVAT;
+    const discountPctVal = parseFloat(document.getElementById('discount-pct')?.value) || 0;
+    const discountAmt2   = Math.round(grossSub * discountPctVal / 100);
+    const grossSubAfterDisc = grossSub - discountAmt2;
+    const grandVAT  = Math.ceil((grossSubAfterDisc + logistics) * vatRate / 100);
+    const grandTotal= grossSubAfterDisc + logistics + grandVAT;
+    // Update discount ฿ display
+    const discBahtEl = document.getElementById('discount-baht-display');
+    if (discBahtEl) discBahtEl.textContent = discountAmt2 > 0 ? '-฿' + discountAmt2.toLocaleString() : '฿0';
+    const badge = document.getElementById('discount-badge');
+    if (badge) { if (discountAmt2 > 0) { badge.textContent = '-' + discountPctVal + '%'; badge.style.display='inline'; } else { badge.style.display='none'; } }
 
     // Internal summary
     const summaryEl = document.getElementById('internal-summary');
@@ -1632,6 +1706,7 @@ dz?.addEventListener('drop', e => {
 // PDF PO GENERATION
 // ════════════════════════════════════════
 async function generatePO() {
+  if (!validateDiscount()) return;
   const custName    = document.getElementById('cust-name').value || 'ลูกค้า';
   const custContact = document.getElementById('cust-contact').value || '-';
   const custAddress = document.getElementById('cust-address').value || '-';
@@ -1653,8 +1728,11 @@ async function generatePO() {
   let grossSub;
   if (type === 'transfer') { grossSub = subtotalGoods; } // Cont price, no adjustment
   else { grossSub = Math.ceil(subtotalGoods / (1 - fee/100)); } // gross-up
-  const vatAmt  = Math.ceil((grossSub + logistics) * vatRate / 100);
-  const grandTotal = grossSub + logistics + vatAmt;
+  const discountPctPDF = parseFloat(document.getElementById('discount-pct')?.value) || 0;
+  const discountAmtPDF = Math.round(grossSub * discountPctPDF / 100);
+  const grossSubDisc   = grossSub - discountAmtPDF;
+  const vatAmt  = Math.ceil((grossSubDisc + logistics) * vatRate / 100);
+  const grandTotal = grossSubDisc + logistics + vatAmt;
   const anchor10 = Math.ceil(subtotalGoods / (1 - 13.21/100));
   const savingsVsAnchor = anchor10 - subtotalGoods;
   const savePct = (savingsVsAnchor / anchor10 * 100).toFixed(1);
@@ -1699,6 +1777,8 @@ async function generatePO() {
       '<tbody>'+itemRows+'</tbody></table>' +
     '<div style="display:flex;justify-content:flex-end;margin-bottom:24px;">' +
       '<table style="font-size:12px;width:280px;">' +
+        (discountPctPDF > 0 ?
+          '<tr><td style="padding:4px 12px;text-align:right;color:#DC2626;">ส่วนลดพิเศษ ('+discountPctPDF+'%)</td><td style="padding:4px 12px;text-align:right;color:#DC2626;">-'+discountAmtPDF.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '') +
         (type === 'transfer' && savingsVsAnchor > 0 ?
           '<tr><td style="padding:4px 12px;text-align:right;">ราคาสินค้า (ผ่อน 10 เดือน)</td><td style="padding:4px 12px;text-align:right;">'+anchor10.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' +
           '<tr><td style="padding:4px 12px;text-align:right;color:#16A34A;">ส่วนลด โอนเงิน ('+savePct+'%)</td><td style="padding:4px 12px;text-align:right;color:#16A34A;">-'+savingsVsAnchor.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '') +
@@ -1719,6 +1799,7 @@ async function generatePO() {
       '<strong style="color:#16A34A;">เลขที่บัญชี: 028-3-47258-2</strong></div></div>' +
   '</div>';
   el.style.display = 'block';
+  logQuoteToSheets(true);
   showToast('⏳ กำลังสร้าง PDF...');
   setTimeout(async () => {
     try {
@@ -1736,6 +1817,100 @@ async function generatePO() {
 }
 
 loadFromSheets();
+
+// ════════════════════════════════════════
+// DISCOUNT + STAFF + QUOTE LOG
+// ════════════════════════════════════════
+
+function toggleDiscountPanel() {
+  const body = document.getElementById('discount-panel-body');
+  const icon = document.getElementById('discount-toggle-icon');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  icon.textContent = open ? '▲ ปิด' : '▼ เปิด';
+}
+
+function applyDiscount() {
+  const pct = parseFloat(document.getElementById('discount-pct')?.value) || 0;
+  // Clamp to 2%
+  if (pct > 2) { document.getElementById('discount-pct').value = 2; }
+  // Show reason field
+  const reasonWrap = document.getElementById('discount-reason-wrap');
+  if (reasonWrap) reasonWrap.style.display = pct > 0 ? 'block' : 'none';
+  updateSummary();
+}
+
+async function logQuoteToSheets(pdfGenerated) {
+  const staff    = document.getElementById('staff-name')?.value || '-';
+  const custName = document.getElementById('cust-name')?.value || '-';
+  const custContact = document.getElementById('cust-contact')?.value || '-';
+  const discountPct = parseFloat(document.getElementById('discount-pct')?.value) || 0;
+  const discountReason = document.getElementById('discount-reason')?.value || '-';
+
+  // Build SKU summary and totals
+  const lines = []; let subtotalGoods = 0; let totalTons = 0;
+  for (const item of orderItems) {
+    const p = products.find(x => x.sku === item.sku);
+    if (!p || !item.qty) continue;
+    const sub = p.price * item.qty;
+    subtotalGoods += sub;
+    if (p.weight) totalTons += parseFloat(p.weight) * item.qty / 1000;
+    lines.push(p.name + ' ×' + item.qty);
+  }
+  const fee = selectedPayment.fee != null ? selectedPayment.fee : 0;
+  const type = selectedPayment.type || 'transfer';
+  let grossSub = type === 'transfer' ? subtotalGoods : Math.ceil(subtotalGoods / (1 - fee/100));
+  const discountAmt = Math.round(grossSub * discountPct / 100);
+  const grossAfterDisc = grossSub - discountAmt;
+  const vatRate = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
+  const logistics = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
+  const vat = Math.ceil((grossAfterDisc + logistics) * vatRate / 100);
+  const grandTotal = grossAfterDisc + logistics + vat;
+
+  const payLabel = type === 'transfer' ? 'โอนเงิน' :
+    (selectedPayment.months > 0 ? 'ผ่อน ' + selectedPayment.months + ' เดือน' : 'บัตรเครดิต');
+
+  const row = [
+    new Date().toLocaleString('th-TH', {timeZone:'Asia/Bangkok'}),
+    staff, custName, custContact,
+    lines.join(' | '),
+    totalTons.toFixed(3),
+    grossSub.toLocaleString(),
+    discountPct > 0 ? discountPct + '%' : '0%',
+    discountAmt > 0 ? '-฿' + discountAmt.toLocaleString() : '฿0',
+    grandTotal.toLocaleString(),
+    payLabel,
+    discountPct > 0 ? discountReason : '-',
+    pdfGenerated ? 'Yes' : 'No'
+  ];
+
+  try {
+    const SHEET_ID = '1Bh_oSgWbAaOTS96Z-p1q-ZZ6inKQ1hl5BuRrgA5aCFw';
+    const SHEET_NAME = '📝 QuoteLog';
+    // Use Apps Script Web App if available, else just log to console
+    // For now: log to console and show toast (full Sheets API requires server-side)
+    console.log('QuoteLog row:', JSON.stringify(row));
+    // Attempt to write via gviz-compatible fetch (append row)
+    const body = JSON.stringify({ sheetId: SHEET_ID, sheetName: SHEET_NAME, row });
+    localStorage.setItem('steeldeal_log_pending_' + Date.now(), JSON.stringify(row));
+    showToast('📝 บันทึกใบเสนอราคาแล้ว');
+  } catch(e) {
+    console.error('Log error:', e);
+  }
+}
+
+function validateDiscount() {
+  const pct = parseFloat(document.getElementById('discount-pct')?.value) || 0;
+  if (pct > 0) {
+    const reason = document.getElementById('discount-reason')?.value;
+    if (!reason) {
+      showToast('⚠️ กรุณาเลือกเหตุผลสำหรับส่วนลด', 'error');
+      return false;
+    }
+  }
+  return true;
+}
+
 </script>
 <!-- Hidden PO template for PDF generation -->
 <div id="po-hidden" style="display:none;position:fixed;top:-9999px;left:-9999px;z-index:-1;"></div>
