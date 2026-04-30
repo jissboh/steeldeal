@@ -610,6 +610,48 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
         </div>
       </div>
 
+      <!-- Sales Discount -->
+      <div class="panel" id="sales-discount-panel">
+        <div class="panel-header" style="cursor:pointer;" onclick="toggleDiscountPanel()">
+          <span class="panel-title">💰 ส่วนลดพิเศษ (Sales)</span>
+          <span id="discount-panel-badge" style="display:none;font-size:11px;background:var(--green);color:#fff;padding:2px 8px;border-radius:10px;margin-left:8px;"></span>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted);" id="discount-panel-toggle-hint">▼ คลิกเพื่อเปิด</span>
+        </div>
+        <div id="sales-discount-body" style="display:none;">
+          <div class="panel-body">
+            <div class="grid-2" style="align-items:end;">
+              <div>
+                <label>ส่วนลด</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <input type="number" id="discount-amount" min="0" step="1" placeholder="0"
+                    style="width:100%;font-size:16px;" oninput="onDiscountChange()">
+                  <select id="discount-type" style="width:80px;" onchange="onDiscountChange()">
+                    <option value="pct">%</option>
+                    <option value="thb">฿</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label>ส่วนลด (฿)</label>
+                <div style="font-size:18px;font-weight:700;color:var(--green);padding:7px 0;" id="discount-thb-display">฿0</div>
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <label>เหตุผล <span style="color:var(--red);font-size:11px;" id="discount-reason-required"></span></label>
+              <select id="discount-reason" style="width:100%;" onchange="onDiscountChange()">
+                <option value="">— เลือกเหตุผล —</option>
+                <option value="ปิดดีล">ปิดดีล</option>
+                <option value="ลูกค้าประจำ">ลูกค้าประจำ</option>
+                <option value="คลียสต็อก">คลียสต็อก</option>
+                <option value="โปรโมชั่น">โปรโมชั่น</option>
+                <option value="อื่นๆ">อื่นๆ</option>
+              </select>
+            </div>
+            <div id="discount-warning" style="display:none;margin-top:8px;padding:6px 10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:6px;font-size:12px;color:#DC2626;"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- VAT -->
       <div class="panel">
         <div class="panel-header"><span class="panel-title">🧾 VAT</span></div>
@@ -945,6 +987,71 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbws_CAG31KeRS6n
 // ─── STAFF MANAGEMENT ───
 let staffList = [];
 
+// ─── SALES DISCOUNT ───────────────────────────────────────
+let salesDiscountThb = 0; // current ฿ discount applied
+
+function toggleDiscountPanel() {
+  const body = document.getElementById('sales-discount-body');
+  const hint = document.getElementById('discount-panel-toggle-hint');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  hint.textContent = open ? '▲ คลิกเพื่อปิด' : '▼ คลิกเพื่อเปิด';
+}
+
+function onDiscountChange() {
+  const amtRaw = parseFloat(document.getElementById('discount-amount').value) || 0;
+  const type   = document.getElementById('discount-type').value;
+  const reason = document.getElementById('discount-reason').value;
+  const warning = document.getElementById('discount-warning');
+  const badge   = document.getElementById('discount-panel-badge');
+  const reqNote = document.getElementById('discount-reason-required');
+
+  // Get current subtotal goods (before fee grossup)
+  let subtotal = 0;
+  orderItems.forEach(item => {
+    const p = products.find(x => x.sku === item.sku);
+    if (p) subtotal += p.price * item.qty;
+  });
+
+  // Convert to ฿
+  let discThb = type === 'pct' ? Math.round(subtotal * amtRaw / 100) : Math.round(amtRaw);
+
+  // Floor guard: discount cannot exceed 10% without warning
+  const discPct = subtotal > 0 ? (discThb / subtotal * 100) : 0;
+  const WARN_THRESHOLD = 8; // % above which show warning
+
+  warning.style.display = 'none';
+  reqNote.textContent = '';
+
+  if (discPct > WARN_THRESHOLD && discThb > 0) {
+    warning.style.display = 'block';
+    warning.textContent = '⚠️ ส่วนลดสูงกว่า ' + WARN_THRESHOLD + '% — กรุณาระบุเหตุผล และจะถูกบันทึกเป็นพิเศษ';
+    reqNote.textContent = '(จำเป็น)';
+  }
+
+  // Hard floor: cannot exceed 15%
+  if (discPct > 15) {
+    discThb = Math.round(subtotal * 0.15);
+    warning.style.display = 'block';
+    warning.textContent = '🚫 ส่วนลดสูงสุดไม่เกิน 15% (' + discThb.toLocaleString() + ' ฿)';
+  }
+
+  salesDiscountThb = discThb;
+  document.getElementById('discount-thb-display').textContent = '฿' + discThb.toLocaleString();
+
+  // Badge on panel header
+  if (discThb > 0) {
+    badge.style.display = 'inline';
+    badge.textContent = '-฿' + discThb.toLocaleString();
+  } else {
+    badge.style.display = 'none';
+  }
+
+  updateSummary();
+}
+
+function getSalesDiscount() { return salesDiscountThb; }
+
 function loadStaff() {
   // Try from sheetStaff (loaded during sync), fallback to localStorage
   const stored = localStorage.getItem('steeldeal_staff');
@@ -1066,43 +1173,130 @@ async function loadFromSheets() {
     const text = await res.text();
     const lines = text.split('\n');
 
+    // ── HEADER-BASED PARSER ──────────────────────────────────
+    // The CSV contains multiple tables with different column structures.
+    // We detect header rows by scanning for known column names,
+    // then map column positions dynamically for each table section.
+    // This is robust to column reordering and new table additions.
+
+    const HEADER_SIGNATURES = ['ประเภท','สินค้า']; // must both appear in a header row
+    const COL_NAMES = {
+      cat:   ['ประเภท'],
+      name:  ['สินค้า'],
+      size:  ['ขนาด'],
+      thick: ['หนา','หนา(mm)','หนา\n(mm)'],
+      len:   ['ยาว','ยาว(m)','ยาว\n(m)'],
+      wt:    ['น้ำหนัก','น้ำหนัก\n(kg/เส้น)','น้ำหนัก\n(kg)','น้ำหนัก(kg)','น้ำหนัก(kg/เส้น)'],
+      dist:  ['Dist/เส้น','Dist เส้น'],
+      cont:  ['Cont Cash','Cont Cash\n(excl.VAT)','Cont Cash\n(excl.VAT)'],
+      inclV: ['incl.VAT','incl.VAT\n(×1.07)'],
+      i10:   ['ผ่อน 10เดือน','ผ่อน10เดือน','ผ่อน 10 เดือน'],
+    };
+
+    function findCol(headers, aliases) {
+      for (const alias of aliases) {
+        const idx = headers.findIndex(h => h.replace(/\s+/g,' ').trim() === alias.replace(/\s+/g,' ').trim());
+        if (idx >= 0) return idx;
+      }
+      // Fallback: partial match
+      for (const alias of aliases) {
+        const idx = headers.findIndex(h => h.includes(alias.split('\n')[0].trim()));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    }
+
+    function isHeaderRow(c) {
+      return HEADER_SIGNATURES.every(sig => c.some(cell => cell.trim() === sig));
+    }
+
     const imported = [];
-    for (let i = 2; i < lines.length; i++) {
-      if (!lines[i].trim()) continue;
+    const seenSKUs = new Set();
+    let colMap = null; // current column mapping
+
+    for (let i = 0; i < lines.length; i++) {
+      if (!lines[i].trim()) { continue; }
       const c = splitRow(lines[i]);
-      if (!c[0] || !c[1]) continue;
-      const distVal = parseFloat(c[6]);
-      const contVal = parseFloat(c[7]);
-      if (!c[6] || isNaN(distVal) || distVal < 10) continue; // skip headers/config rows
-      // Skip first-table rows where c[6] is ราคา/กก. (< 50) instead of Dist price per piece
-      if (distVal < 50) continue;
-      // Also skip rows where contVal looks like incl.VAT multiplier (if c[7] is same as c[6] ± small amount but both < 100)
-      // Validate: contVal should be >= distVal (Cont >= Dist) or contVal === distVal (rebar)
-      if (contVal > 0 && contVal < distVal * 0.5) continue; // contVal suspiciously low
-      const cat = c[0], baseName = c[1], size = c[2]||'', thick = c[3]||'', len = c[4]||'';
-      const wt    = parseFloat(c[5]) || null;
+      if (c.length < 3) continue;
+
+      // Detect header row — update column mapping
+      if (isHeaderRow(c)) {
+        colMap = {};
+        for (const [field, aliases] of Object.entries(COL_NAMES)) {
+          colMap[field] = findCol(c, aliases);
+        }
+        // Only use this table if it has both Dist and Cont Cash columns
+        if (colMap.dist < 0 || colMap.cont < 0) {
+          colMap = null; // skip tables without Cont Cash (e.g. old Dist-only table)
+        }
+        continue;
+      }
+
+      // Skip rows before we've found a valid table header
+      if (!colMap) continue;
+
+      // Skip section label rows (merged cells, no price data)
+      const cat = (c[colMap.cat] || '').trim();
+      const baseName = (c[colMap.name] || '').trim();
+      if (!cat || !baseName) continue;
+
+      // Parse prices using detected column positions
+      const distVal = parseFloat((c[colMap.dist] || '').replace(/,/g,''));
+      const contVal = parseFloat((c[colMap.cont] || '').replace(/,/g,''));
+      if (isNaN(distVal) || distVal < 10) continue; // skip label/blank rows
+
+      const size  = (c[colMap.size]  || '').trim();
+      const thick = (c[colMap.thick] || '').trim();
+      const len   = (c[colMap.len]   || '').trim();
+      const wt    = parseFloat((c[colMap.wt]    || '').replace(/,/g,'')) || null;
+      const inclV = parseFloat((c[colMap.inclV] || '').replace(/,/g,'')) || null;
+      const i10   = parseFloat((c[colMap.i10]   || '').replace(/,/g,'')) || null;
       const dist  = distVal;
       const cont  = contVal || dist;
-      const inclV = parseFloat(c[8]) || null;
-      const i10   = parseFloat(c[9]) || null;
+
+      // Build display name
+      // Normalize helper: strip quotes, convert × to x, lowercase for comparison
+      const normStr = s => s.replace(/[""″"]/g,'"').replace(/×/g,'x').replace(/\s+/g,' ').trim().toLowerCase();
+
       let name = baseName;
       if (cat === 'เหล็กเส้น') {
+        // Rebar: name is already complete in baseName (e.g. "ข้ออ้อย SD40T DB16mm 10m")
+        // Just clean up SD40T → SD40, add ตรง suffix
+        name = name.replace('SD40T','SD40');
+        // Add size only if not already present (normalized comparison)
         const sizeClean = size.replace(/^DB|^Ø/,'');
-        const nameClean = name.replace('SD40T','SD40');
-        name = nameClean + ' ' + sizeClean;
-        if (len) name = name + '*' + len + 'ม.';
-        name = name + ' ตรง';
+        if (sizeClean && !normStr(name).includes(normStr(sizeClean))) name = name + ' ' + sizeClean;
+        // Add length only if not already in name
+        if (len && !normStr(name).includes(len+'ม') && !normStr(name).includes(len+'m')) name = name + '*' + len + 'ม.';
+        if (!name.includes('ตรง')) name = name + ' ตรง';
       } else {
-        if (size && !baseName.includes(size)) name = baseName + ' ' + size;
-        if (len && !baseName.includes(len + 'm') && !baseName.includes(len + ' m')) name = name + ' ' + len + 'm';
+        // Pipes/sections: baseName already contains full name — only append size/len if genuinely missing
+        const sizeNorm = normStr(size);
+        const nameNorm = normStr(name);
+        // Only append size if it's not already embedded in the name (normalized)
+        if (size && sizeNorm && !nameNorm.includes(sizeNorm)) name = name + ' ' + size;
+        // Only append length if not already in name
+        const lenNorm = len ? len.toString() : '';
+        if (lenNorm && !normStr(name).includes(lenNorm+'m')) name = name + ' ' + len + 'm';
       }
-      name = name.replace(/\s+/g, ' ').trim();
-      const skuBase = cat + '-' + baseName.substring(0,8) + '-' + size + '-' + thick + '-' + len;
-      const sku = skuBase.replace(/[^\w\u0E00-\u0E7F\-]/g,'_').substring(0,40);
-      // Dedup: skip if SKU already imported (second table wins over third)
-      if (imported.find(p => p.sku === sku)) continue;
+      name = name.replace(/\s+/g,' ').trim();
+
+      // Build SKU from all distinguishing fields — unique per product variant
+      const skuRaw = [cat, baseName, size, thick, len].join('-');
+      const sku = skuRaw.replace(/[^\w\u0E00-\u0E7F\-]/g,'_').substring(0,50);
+
+      // Dedup: first occurrence wins (highest-column-count table appears first in sheet)
+      if (seenSKUs.has(sku)) continue;
+      seenSKUs.add(sku);
+
+      // Determine unit based on product type
+      let unit = 'เส้น';
+      if (cat === 'แผ่นเหล็ก') unit = 'แผ่น';
+      else if (name.includes('ลวด')) unit = 'ม้วน';
+      else if (!len) unit = 'ชิ้น'; // no length = sold as piece/unit
+
       imported.push({ sku, name, cat, size, thick, len, wt, dist, cont, inclV, i10,
-        price: cont || dist || 0, unit: 'เส้น', weight: wt ? String(wt) : '', pricekg: '' });
+        price: cont || dist || 0, unit, weight: wt ? String(wt) : '', pricekg: '' });
     }
 
     sheetProducts = imported;
@@ -1356,8 +1550,11 @@ function updateSummary() {
     } else {
       grossSub = Math.ceil(subtotalGoods / (1 - fee/100)); // gross-up for bank fees
     }
-    const grandVAT  = Math.ceil((grossSub + logistics) * vatRate / 100);
-    const grandTotal= grossSub + logistics + grandVAT;
+    // Apply sales discount
+    const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
+    const grossSubAfterDisc = Math.max(0, grossSub - salesDisc);
+    const grandVAT  = Math.ceil((grossSubAfterDisc + logistics) * vatRate / 100);
+    const grandTotal= grossSubAfterDisc + logistics + grandVAT;
 
     // Internal summary
     const summaryEl = document.getElementById('internal-summary');
@@ -1400,6 +1597,9 @@ function updateSummary() {
       } else {
         grossPrice = Math.ceil(subtotalGoods / (1 - opt.fee/100)); // gross-up
       }
+      // Apply sales discount
+      const _sd = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
+      grossPrice = Math.max(0, grossPrice - _sd);
       const tot = grossPrice + logistics;
       const te = document.getElementById('pay-' + opt.id);
       const se = document.getElementById('pay-' + opt.id + '-sub');
@@ -1456,6 +1656,9 @@ function generateQuote() {
   } else {
     grossSub = Math.ceil(subtotalGoods / (1 - fee/100)); // gross-up
   }
+  const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
+  const discReason = salesDisc > 0 ? (document.getElementById('discount-reason')?.value || '') : '';
+  grossSub = Math.max(0, grossSub - salesDisc);
   const vat     = Math.ceil((grossSub + logistics) * vatRate / 100);
   const grand   = grossSub + logistics + vat;
   const feeAmt  = grossSub - subtotalGoods; // difference from Cont
@@ -1470,7 +1673,8 @@ function generateQuote() {
     payLine = '📅 ผ่อน ' + months + ' เดือน: ฿' + grand.toLocaleString() + '\n   เดือนละ ~฿' + pm.toLocaleString();
   }
   const now = new Date(); const dateStr = now.getDate() + '/' + (now.getMonth()+1) + '/' + now.getFullYear();
-  const priceBk = '  💵 ราคาสินค้า: ฿' + subtotalGoods.toLocaleString() + '\n';
+  const salesDiscLine = salesDisc > 0 ? '  ✂️ ส่วนลดพิเศษ' + (discReason ? ' (' + discReason + ')' : '') + ': -฿' + salesDisc.toLocaleString() + '\n' : '';
+  const priceBk = '  💵 ราคาสินค้า: ฿' + subtotalGoods.toLocaleString() + '\n' + salesDiscLine;
   const logLine = logistics>0 ? '  🚚 ค่าขนส่ง: ฿' + logistics.toLocaleString() + '\n' : '';
   const vatLine = vat>0 ? '  🧾 VAT 7%:  ฿' + vat.toLocaleString() + '\n' : '';
   const quote = '━━━━━━━━━━━━━━━━━━━━━━━━\n🔩 SteelDeal ใบเสนอราคา\n━━━━━━━━━━━━━━━━━━━━━━━━\n📅 วันที่: ' + dateStr + '\n👤 ลูกค้า: ' + custName + '\n' + (custCtx?'📞 '+custCtx+'\n':'') + (custAddr?'📍 '+custAddr+'\n':'') + '\n📦 รายการสินค้า:\n' + lines.join('\n') + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n' + priceBk + logLine + vatLine + '  ──────────────────────\n  💰 ยอดรวมสุทธิ: ฿' + grand.toLocaleString() + '\n\n' + payLine + '\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n✅ บริการของเรา:\n  • ผ่อน 0% สูงสุด 10 เดือน\n  • ส่งถึงที่ครบวงจร\n  • EEC · Bang Phli\n\n📞 LINE: @steeldeal' + (notes?'\n\n📝 หมายเหตุ: '+notes:'');
