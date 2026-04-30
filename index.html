@@ -1329,6 +1329,11 @@ async function loadFromSheets() {
 
     const now = new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
     document.getElementById('syncBadge').innerHTML = 'ซิงค์ <span class="t">' + now + '</span><br>' + imported.length + ' รายการ';
+    if (imported.length === 0) {
+      showToast('⚠️ ไม่พบสินค้า — ตรวจสอบชื่อ tab: ' + SHEET_TAB);
+    } else {
+      showToast('✅ โหลด ' + imported.length + ' รายการสำเร็จ');
+    }
     showToast('✓ ซิงค์ราคาจาก Google Sheets สำเร็จ! ' + imported.length + ' รายการ');
 
   } catch(err) {
