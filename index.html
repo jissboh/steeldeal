@@ -940,7 +940,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 // CONFIG
 // ════════════════════════════════════════
 // ─── APPS SCRIPT ENDPOINT (set after deploying) ───
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbws_CAG31KeRS6nowM-pE_sf_jEStlf49GcGbS5Us8h00lXUkBxbYBA4JZU4NvMwTPSxw/exec'; // ← paste your Web App URL here after deploying
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbws_CAG31KeRS6nowM-pE_sf_jEStlf49GcGbS5Us8h00lXUkBxbYBA4JZU4NvMwTPSxw/exec';
 
 // ─── STAFF MANAGEMENT ───
 let staffList = [];
@@ -1074,6 +1074,11 @@ async function loadFromSheets() {
       const distVal = parseFloat(c[6]);
       const contVal = parseFloat(c[7]);
       if (!c[6] || isNaN(distVal) || distVal < 10) continue; // skip headers/config rows
+      // Skip first-table rows where c[6] is ราคา/กก. (< 50) instead of Dist price per piece
+      if (distVal < 50) continue;
+      // Also skip rows where contVal looks like incl.VAT multiplier (if c[7] is same as c[6] ± small amount but both < 100)
+      // Validate: contVal should be >= distVal (Cont >= Dist) or contVal === distVal (rebar)
+      if (contVal > 0 && contVal < distVal * 0.5) continue; // contVal suspiciously low
       const cat = c[0], baseName = c[1], size = c[2]||'', thick = c[3]||'', len = c[4]||'';
       const wt    = parseFloat(c[5]) || null;
       const dist  = distVal;
@@ -1094,6 +1099,8 @@ async function loadFromSheets() {
       name = name.replace(/\s+/g, ' ').trim();
       const skuBase = cat + '-' + baseName.substring(0,8) + '-' + size + '-' + thick + '-' + len;
       const sku = skuBase.replace(/[^\w\u0E00-\u0E7F\-]/g,'_').substring(0,40);
+      // Dedup: skip if SKU already imported (second table wins over third)
+      if (imported.find(p => p.sku === sku)) continue;
       imported.push({ sku, name, cat, size, thick, len, wt, dist, cont, inclV, i10,
         price: cont || dist || 0, unit: 'เส้น', weight: wt ? String(wt) : '', pricekg: '' });
     }
