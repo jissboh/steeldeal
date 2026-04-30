@@ -1120,21 +1120,23 @@ async function loadStaffFromSheet(lines) {
 const SHEET_ID       = '1Bh_oSgWbAaOTS96Z-p1q-ZZ6inKQ1hl5BuRrgA5aCFw';
 const SHEET_TAB      = 'Tool Export';
 const STAFF_TAB      = 'Staff';
+
+// Restored old working style: use sheet name instead of hard-coded gid.
 const CSV_URL        = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
-                       '/gviz/tq?tqx=out:csv&gid=692965963';
+                       '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(SHEET_TAB);
 const STAFF_CSV_URL  = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
-                       '/gviz/tq?tqx=out:csv&gid=1771826324';
+                       '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(STAFF_TAB);
 
 // ════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════
-let products      = [];   // { sku, name, price, unit, weight, pricekg, cat, size, thick, len, dist, cont, inclV, i10 }
-let orderItems    = [];   // { id, sku, qty }
+let products      = [];
+let orderItems    = [];
 let selectedPayment = { months: 0, fee: 0, type: 'transfer' };
 let isUpdating    = false;
 let plActiveCat   = 'all';
 let plShowIncl    = false;
-let sheetProducts = [];   // raw from sheet, for price list tab
+let sheetProducts = [];
 
 const LOGISTICS_PRICES = {
   '6wheel':       { A:2500, B:3200, C:4500, D:null,  E:null },
@@ -1151,248 +1153,198 @@ const DISCOUNT_TIERS = [
 ];
 
 // ════════════════════════════════════════
-// SHEET SYNC — load from Google Sheets Tool Export tab
+// SHEET SYNC — restored stable URL + safer parser
 // ════════════════════════════════════════
 function splitRow(line) {
-  const cols = []; let cur = '', inQ = false;
-  for (const ch of line) {
-    if (ch === '"') inQ = !inQ;
+  const cols = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    const next = line[i + 1];
+    if (ch === '"' && inQ && next === '"') { cur += '"'; i++; }
+    else if (ch === '"') inQ = !inQ;
     else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
     else cur += ch;
   }
-  cols.push(cur.trim()); return cols;
+  cols.push(cur.trim());
+  return cols.map(x => x.replace(/^"|"$/g, '').trim());
+}
+
+function cleanNum(v) {
+  if (v == null) return null;
+  const n = parseFloat(String(v).replace(/,/g, '').replace(/[฿\s]/g, ''));
+  return isNaN(n) ? null : n;
+}
+
+function cleanText(v) {
+  return String(v || '').replace(/^"|"$/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function makeSKU(cat, name, size, thick, len, rowIndex) {
+  const raw = [cat, name, size, thick, len].filter(Boolean).join('-') || ('ROW-' + rowIndex);
+  return raw.replace(/[^A-Za-z0-9_\-\u0E00-\u0E7F]+/g, '_').replace(/_+/g, '_').substring(0, 60);
+}
+
+function normalizeHeader(h) {
+  return cleanText(h).replace(/\s+/g, '').toLowerCase();
+}
+
+function findColumn(headers, candidates) {
+  const normHeaders = headers.map(normalizeHeader);
+  const normCandidates = candidates.map(c => normalizeHeader(c));
+  for (const cand of normCandidates) {
+    const idx = normHeaders.findIndex(h => h === cand);
+    if (idx >= 0) return idx;
+  }
+  for (const cand of normCandidates) {
+    const idx = normHeaders.findIndex(h => h.includes(cand) || cand.includes(h));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function buildName(cat, baseName, size, thick, len) {
+  let name = cleanText(baseName);
+  const norm = s => cleanText(s).replace(/["″”]/g, '"').replace(/×/g, 'x').toLowerCase();
+
+  if (cat === 'เหล็กเส้น') {
+    name = name.replace('SD40T', 'SD40');
+    const sizeClean = cleanText(size).replace(/^DB|^Ø/i, '');
+    if (sizeClean && !norm(name).includes(norm(sizeClean))) name += ' ' + sizeClean;
+    if (len && !norm(name).includes(norm(len) + 'ม') && !norm(name).includes(norm(len) + 'm')) name += '*' + len + 'ม.';
+    if (!name.includes('ตรง')) name += ' ตรง';
+  } else {
+    if (size && !norm(name).includes(norm(size))) name += ' ' + size;
+    if (thick && !norm(name).includes(norm(thick)) && !norm(name).includes('หนา')) name += ' หนา ' + thick + 'mm';
+    if (len && !norm(name).includes(norm(len) + 'm') && !norm(name).includes(norm(len) + 'ม')) name += ' ' + len + 'm';
+  }
+  return cleanText(name);
 }
 
 async function loadFromSheets() {
   const btn = document.getElementById('syncBtn');
-  btn.classList.add('spin');
+  if (btn) btn.classList.add('spin');
   document.getElementById('syncBadge').textContent = 'กำลังซิงค์...';
 
   try {
-    const res = await fetch(CSV_URL);
+    const res = await fetch(CSV_URL + '&_=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const text = await res.text();
-    const lines = text.split('\n');
-
-    // ── HEADER-BASED PARSER ──────────────────────────────────
-    // The CSV contains multiple tables with different column structures.
-    // We detect header rows by scanning for known column names,
-    // then map column positions dynamically for each table section.
-    // This is robust to column reordering and new table additions.
-
-    const HEADER_SIGNATURES = ['ประเภท','สินค้า']; // must both appear in a header row
-    const COL_NAMES = {
-      cat:   ['ประเภท'],
-      name:  ['สินค้า'],
-      size:  ['ขนาด'],
-      thick: ['หนา','หนา(mm)','หนา\n(mm)'],
-      len:   ['ยาว','ยาว(m)','ยาว\n(m)'],
-      wt:    ['น้ำหนัก','น้ำหนัก\n(kg/เส้น)','น้ำหนัก\n(kg)','น้ำหนัก(kg)','น้ำหนัก(kg/เส้น)'],
-      dist:  ['Dist/เส้น','Dist เส้น'],
-      cont:  ['Cont Cash','Cont Cash\n(excl.VAT)','Cont Cash\n(excl.VAT)'],
-      inclV: ['incl.VAT','incl.VAT\n(×1.07)'],
-      i10:   ['ผ่อน 10เดือน','ผ่อน10เดือน','ผ่อน 10 เดือน'],
-    };
-
-    function findCol(headers, aliases) {
-      for (const alias of aliases) {
-        const idx = headers.findIndex(h => h.replace(/\s+/g,' ').trim() === alias.replace(/\s+/g,' ').trim());
-        if (idx >= 0) return idx;
-      }
-      // Fallback: partial match
-      for (const alias of aliases) {
-        const idx = headers.findIndex(h => h.includes(alias.split('\n')[0].trim()));
-        if (idx >= 0) return idx;
-      }
-      return -1;
-    }
-
-    function isHeaderRow(c) {
-      return HEADER_SIGNATURES.every(sig => c.some(cell => cell.trim() === sig));
-    }
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const rows = lines.map(splitRow);
 
     const imported = [];
     const seenSKUs = new Set();
-    let colMap = null; // current column mapping
+    let col = null;
 
-    for (let i = 0; i < lines.length; i++) {
-      if (!lines[i].trim()) { continue; }
-      const c = splitRow(lines[i]);
-      if (c.length < 3) continue;
+    function setHeader(row) {
+      col = {
+        cat:   findColumn(row, ['ประเภท', 'Category', 'หมวดหมู่']),
+        name:  findColumn(row, ['สินค้า', 'ชื่อสินค้า', 'Name', 'Product']),
+        size:  findColumn(row, ['ขนาด', 'Size']),
+        thick: findColumn(row, ['หนา', 'หนา(mm)', 'Thickness']),
+        len:   findColumn(row, ['ยาว', 'ยาว(m)', 'Length']),
+        wt:    findColumn(row, ['น้ำหนัก', 'น้ำหนัก(kg/เส้น)', 'น้ำหนักkg', 'Weight']),
+        dist:  findColumn(row, ['Dist/เส้น', 'Dist เส้น', 'Dist']),
+        cont:  findColumn(row, ['Cont Cash', 'Cont Cash(excl.VAT)', 'ContCash', 'ราคา', 'Price']),
+        inclV: findColumn(row, ['incl.VAT', 'incl VAT', 'รวมVAT']),
+        i10:   findColumn(row, ['ผ่อน 10เดือน', 'ผ่อน10เดือน', 'ผ่อน 10 เดือน'])
+      };
+      return col.name >= 0 && (col.cont >= 0 || col.dist >= 0);
+    }
 
-      // Detect header row — update column mapping
-      if (isHeaderRow(c)) {
-        colMap = {};
-        for (const [field, aliases] of Object.entries(COL_NAMES)) {
-          colMap[field] = findCol(c, aliases);
-        }
-        // Only use this table if it has both Dist and Cont Cash columns
-        if (colMap.dist < 0 || colMap.cont < 0) {
-          colMap = null; // skip tables without Cont Cash (e.g. old Dist-only table)
-        }
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const joined = r.join('|');
+
+      if (joined.includes('สินค้า') && (joined.includes('Cont') || joined.includes('Dist') || joined.includes('ราคา'))) {
+        setHeader(r);
         continue;
       }
 
-      // Skip rows before we've found a valid table header
-      if (!colMap) continue;
+      const usingFixed = !col;
+      const catRaw   = usingFixed ? r[0] : r[col.cat];
+      const nameRaw  = usingFixed ? r[1] : r[col.name];
+      const sizeRaw  = usingFixed ? r[2] : r[col.size];
+      const thickRaw = usingFixed ? r[3] : r[col.thick];
+      const lenRaw   = usingFixed ? r[4] : r[col.len];
+      const wtRaw    = usingFixed ? r[5] : r[col.wt];
+      const distRaw  = usingFixed ? r[6] : r[col.dist];
+      const contRaw  = usingFixed ? (r[7] || r[6]) : r[col.cont];
+      const inclRaw  = usingFixed ? r[8] : r[col.inclV];
+      const i10Raw   = usingFixed ? r[9] : r[col.i10];
 
-      // Skip section label rows (merged cells, no price data)
-      const cat = (c[colMap.cat] || '').trim();
-      const baseName = (c[colMap.name] || '').trim();
-      if (!cat || !baseName) continue;
+      const cat = cleanText(catRaw);
+      const baseName = cleanText(nameRaw);
+      if (!baseName || baseName === 'สินค้า' || baseName.length < 2) continue;
 
-      // Parse prices using detected column positions
-      const distVal = parseFloat((c[colMap.dist] || '').replace(/,/g,''));
-      const contVal = parseFloat((c[colMap.cont] || '').replace(/,/g,''));
-      if (isNaN(distVal) || distVal < 10) continue; // skip label/blank rows
+      const dist = cleanNum(distRaw);
+      const cont = cleanNum(contRaw) || dist;
+      if (!cont || cont < 10) continue;
 
-      const size  = (c[colMap.size]  || '').trim();
-      const thick = (c[colMap.thick] || '').trim();
-      const len   = (c[colMap.len]   || '').trim();
-      const wt    = parseFloat((c[colMap.wt]    || '').replace(/,/g,'')) || null;
-      const inclV = parseFloat((c[colMap.inclV] || '').replace(/,/g,'')) || null;
-      const i10   = parseFloat((c[colMap.i10]   || '').replace(/,/g,'')) || null;
-      const dist  = distVal;
-      const cont  = contVal || dist;
+      const size  = cleanText(sizeRaw);
+      const thick = cleanText(thickRaw);
+      const len   = cleanText(lenRaw);
+      const wt    = cleanNum(wtRaw);
+      const inclV = cleanNum(inclRaw) || Math.round(cont * 1.07);
+      const i10   = cleanNum(i10Raw);
+      const name  = buildName(cat, baseName, size, thick, len);
+      const sku   = makeSKU(cat, baseName, size, thick, len, i);
 
-      // Build display name
-      // Normalize helper: strip quotes, convert × to x, lowercase for comparison
-      const normStr = s => s.replace(/[""″"]/g,'"').replace(/×/g,'x').replace(/\s+/g,' ').trim().toLowerCase();
-
-      let name = baseName;
-      if (cat === 'เหล็กเส้น') {
-        // Rebar: name is already complete in baseName (e.g. "ข้ออ้อย SD40T DB16mm 10m")
-        // Just clean up SD40T → SD40, add ตรง suffix
-        name = name.replace('SD40T','SD40');
-        // Add size only if not already present (normalized comparison)
-        const sizeClean = size.replace(/^DB|^Ø/,'');
-        if (sizeClean && !normStr(name).includes(normStr(sizeClean))) name = name + ' ' + sizeClean;
-        // Add length only if not already in name
-        if (len && !normStr(name).includes(len+'ม') && !normStr(name).includes(len+'m')) name = name + '*' + len + 'ม.';
-        if (!name.includes('ตรง')) name = name + ' ตรง';
-      } else {
-        // Pipes/sections: baseName already contains full name — only append size/len if genuinely missing
-        const sizeNorm = normStr(size);
-        const nameNorm = normStr(name);
-        // Only append size if it's not already embedded in the name (normalized)
-        if (size && sizeNorm && !nameNorm.includes(sizeNorm)) name = name + ' ' + size;
-        // Only append length if not already in name
-        const lenNorm = len ? len.toString() : '';
-        if (lenNorm && !normStr(name).includes(lenNorm+'m')) name = name + ' ' + len + 'm';
-      }
-      name = name.replace(/\s+/g,' ').trim();
-
-      // Build SKU from all distinguishing fields — unique per product variant
-      const skuRaw = [cat, baseName, size, thick, len].join('-');
-      const sku = skuRaw.replace(/[^\w\u0E00-\u0E7F\-]/g,'_').substring(0,50);
-
-      // Dedup: first occurrence wins (highest-column-count table appears first in sheet)
       if (seenSKUs.has(sku)) continue;
       seenSKUs.add(sku);
 
-      // Determine unit based on product type
       let unit = 'เส้น';
-      if (cat === 'แผ่นเหล็ก') unit = 'แผ่น';
+      if (cat === 'แผ่นเหล็ก' || name.includes('แผ่น')) unit = 'แผ่น';
       else if (name.includes('ลวด')) unit = 'ม้วน';
-      else if (!len) unit = 'ชิ้น'; // no length = sold as piece/unit
+      else if (!len && cat && !name.includes('เหล็กเส้น')) unit = 'ชิ้น';
 
-      imported.push({ sku, name, cat, size, thick, len, wt, dist, cont, inclV, i10,
-        price: cont || dist || 0, unit, weight: wt ? String(wt) : '', pricekg: '' });
+      imported.push({
+        sku, name, cat, size, thick, len,
+        wt, dist: dist || cont, cont, inclV, i10,
+        price: cont,
+        unit,
+        weight: wt ? String(wt) : '',
+        pricekg: wt ? (cont / wt).toFixed(2) : ''
+      });
     }
 
     sheetProducts = imported;
-
-    // Merge into products: update price/weight from sheet if SKU matches, otherwise add new
-    imported.forEach(sp => {
-      const idx = products.findIndex(p => p.sku === sp.sku);
-      if (idx >= 0) {
-        products[idx].price = sp.price;
-        products[idx].weight = sp.weight;
-        products[idx].cat = sp.cat;
-      } else {
-        products.push(sp);
-      }
-    });
+    products = imported.slice();
 
     renderProductTable();
     buildPLChips();
     plFilter();
+    renderOrderItems();
 
-    // Also fetch staff list
     try {
-      const staffRes = await fetch(STAFF_CSV_URL);
+      const staffRes = await fetch(STAFF_CSV_URL + '&_=' + Date.now(), { cache: 'no-store' });
       if (staffRes.ok) {
         const staffText = await staffRes.text();
-        const staffLines = staffText.split('\n').slice(1).map(l => l.replace(/"/g,'').trim()).filter(Boolean);
+        const staffLines = staffText.split(/\r?\n/).slice(1).map(l => l.replace(/"/g,'').trim()).filter(Boolean);
         await loadStaffFromSheet(staffLines);
       }
     } catch(e) { console.warn('Staff load failed:', e); }
 
     const now = new Date().toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
     document.getElementById('syncBadge').innerHTML = 'ซิงค์ <span class="t">' + now + '</span><br>' + imported.length + ' รายการ';
+
     if (imported.length === 0) {
-      showToast('⚠️ ไม่พบสินค้า — ตรวจสอบชื่อ tab: ' + SHEET_TAB);
+      console.warn('Sheet loaded but imported 0 rows. First rows:', rows.slice(0, 8));
+      showToast('⚠️ โหลดชีทได้ แต่ไม่พบสินค้า — ตรวจหัวตาราง Tool Export', 'error');
     } else {
-      showToast('✅ โหลด ' + imported.length + ' รายการสำเร็จ');
+      showToast('✅ ซิงค์ราคาจาก Google Sheets สำเร็จ! ' + imported.length + ' รายการ');
     }
-    showToast('✓ ซิงค์ราคาจาก Google Sheets สำเร็จ! ' + imported.length + ' รายการ');
 
   } catch(err) {
+    console.error('Sheet sync failed:', err);
     document.getElementById('syncBadge').textContent = 'ซิงค์ไม่สำเร็จ';
     showToast('⚠️ ซิงค์ไม่สำเร็จ: ' + err.message, 'error');
   } finally {
-    btn.classList.remove('spin');
+    if (btn) btn.classList.remove('spin');
   }
 }
-
-// ════════════════════════════════════════
-// TABS
-// ════════════════════════════════════════
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t, i) => {
-    const tabs = ['calculator','pricelist','products','import'];
-    t.classList.toggle('active', tabs[i] === tab);
-  });
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.getElementById('tab-' + tab).classList.add('active');
-  if (tab === 'products') renderProductTable();
-  if (tab === 'pricelist') { buildPLChips(); plFilter(); }
-}
-
-// ════════════════════════════════════════
-// PRICE LIST TAB
-// ════════════════════════════════════════
-function buildPLChips() {
-  const src = sheetProducts.length ? sheetProducts : products;
-  const cats = [...new Set(src.map(p => p.cat).filter(Boolean))];
-  const row = document.getElementById('pl-chips');
-  row.innerHTML = '<button class="chip-btn active" data-cat="all" onclick="plSetCat(\'all\')">ทั้งหมด</button>';
-  cats.forEach(cat => {
-    const b = document.createElement('button');
-    b.className = 'chip-btn'; b.dataset.cat = cat; b.textContent = cat;
-    b.onclick = () => plSetCat(cat); row.appendChild(b);
-  });
-}
-
-function plSetCat(cat) {
-  plActiveCat = cat;
-  document.querySelectorAll('.chip-btn').forEach(c => c.classList.toggle('active', c.dataset.cat === cat));
-  plFilter();
-}
-
-function plSetVAT(btn) {
-  plShowIncl = btn.dataset.vat === 'incl';
-  document.querySelectorAll('.vat-btn-pl').forEach(b => b.classList.toggle('active', b === btn));
-  plFilter();
-}
-
-function plFilter() {
-  const src = sheetProducts.length ? sheetProducts : products;
-  if (!src.length) {
-    document.getElementById('pl-content').innerHTML = '<div class="state-box"><div class="spinner"></div><p>กำลังโหลดราคา...<br><small>กด "ซิงค์ราคา" ด้านบนเพื่อโหลดจาก Google Sheets</small></p></div>';
-    document.getElementById('pl-count').textContent = '—';
-    return;
-  }
   const q = (document.getElementById('pl-search')?.value || '').toLowerCase().trim();
   const terms = q ? q.split(/\s+/) : [];
   const filtered = src.filter(p => {
