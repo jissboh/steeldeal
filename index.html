@@ -1178,12 +1178,27 @@ function getItemPrice(item, product) {
 }
 
 function updateCustomPrice(id, value) {
+  // Do NOT re-render while typing. Re-rendering replaces the input element
+  // and causes the cursor/focus to jump after every digit.
   const item = orderItems.find(i => i.id === id);
   if (!item) return;
   const v = parseFloat(value);
   item.customPrice = (!isNaN(v) && v > 0) ? v : null;
-  renderOrderItems();
+
+  // Update this row's total immediately without rebuilding the whole order UI.
+  const p = products.find(x => x.sku === item.sku);
+  const rowTotalEl = document.getElementById('row-total-' + id);
+  if (p && rowTotalEl) {
+    const unitPrice = getItemPrice(item, p);
+    rowTotalEl.textContent = '฿' + (unitPrice * item.qty).toLocaleString();
+  }
+
   updateSummary();
+}
+
+function finishCustomPriceEdit(id) {
+  // Refresh helper text such as “จาก Sheet” / “แก้เองจาก ...” only after user leaves the field.
+  renderOrderItems();
 }
 
 function overrideLogisticsFinal(value) {
@@ -1614,11 +1629,11 @@ function renderOrderItems() {
         '<button class="btn-qty" onclick="updateItem(' + item.id + ',\'qty\',' + item.qty + '+1)">+</button></div>' +
         '<div class="text-muted" style="margin-top:4px;">' + (p?.unit||'เส้น') + '</div></div>' +
       '<div><label>ราคา/เส้น</label>' +
-        (p ? '<input type="number" class="editable-price-input" value="' + unitPrice + '" min="0" step="1" oninput="updateCustomPrice(' + item.id + ', this.value)">' +
+        (p ? '<input type="number" class="editable-price-input" value="' + unitPrice + '" min="0" step="1" oninput="updateCustomPrice(' + item.id + ', this.value)" onblur="finishCustomPriceEdit(' + item.id + ')">' +
              '<div class="editable-price-note">' + (isCustom ? 'แก้เองจาก ฿' + p.price.toLocaleString() : 'จาก Sheet') + '</div>' :
              '<div style="font-family:var(--mono);font-size:15px;font-weight:600;padding:9px 0;">—</div>') +
       '</div>' +
-      '<div><label>รวม</label><div class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">฿' + (p?(unitPrice*item.qty).toLocaleString():'—') + '</div></div>' +
+      '<div><label>รวม</label><div id="row-total-' + item.id + '" class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">฿' + (p?(unitPrice*item.qty).toLocaleString():'—') + '</div></div>' +
       '<div><label>&nbsp;</label><button class="btn-icon" onclick="removeOrderRow(' + item.id + ')" title="ลบ">✕</button></div>' +
     '</div>';
   }).join('');
