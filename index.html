@@ -169,6 +169,21 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 .btn-qty { padding: 4px 10px; background: var(--mid); border: 1px solid var(--border2); color: var(--text); cursor: pointer; border-radius: 4px; font-size: 16px; font-weight: 600; line-height: 1; }
 .btn-qty:hover { background: var(--red-lt); border-color: var(--red-md); }
 
+
+/* ═══════════ EDITABLE PRICING FIELDS ═══════════ */
+.editable-price-input, .editable-logistics-input {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+  padding: 8px 9px;
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  background: #fff;
+}
+.editable-price-input:focus, .editable-logistics-input:focus { border-color: var(--red); }
+.editable-price-note { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
 /* ═══════════ ORDER ITEMS ═══════════ */
 .order-row {
   display: grid;
@@ -601,7 +616,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
             </div>
             <div id="next-unlock-box" class="next-unlock-box" style="display:none;"><span id="next-unlock-message"></span></div>
             <hr>
-            <div class="logistics-total"><span>ค่าขนส่งสุทธิ:</span><span class="val" id="logistics-final">฿0</span></div>
+            <div class="logistics-total"><span>ค่าขนส่งสุทธิ:</span><input type="number" id="logistics-final" class="editable-logistics-input" value="0" min="0" step="1" oninput="overrideLogisticsFinal(this.value)" style="width:130px;color:var(--red);"></div>
           </div>
           <div id="manual-logistics" style="margin-top:12px; display:none;">
             <label>ระบุค่าขนส่ง (฿) *</label>
@@ -1011,7 +1026,7 @@ function onDiscountChange() {
   let subtotal = 0;
   orderItems.forEach(item => {
     const p = products.find(x => x.sku === item.sku);
-    if (p) subtotal += p.price * item.qty;
+    if (p) subtotal += getItemPrice(item, p) * item.qty;
   });
 
   // Convert to ฿
@@ -1153,6 +1168,29 @@ let isUpdating    = false;
 let plActiveCat   = 'all';
 let plShowIncl    = false;
 let sheetProducts = [];   // raw from sheet, for price list tab
+
+
+// Editable order price helper. Default comes from Google Sheet; sales can override per row.
+function getItemPrice(item, product) {
+  if (!product) return 0;
+  const custom = parseFloat(item.customPrice);
+  return (!isNaN(custom) && custom > 0) ? custom : product.price;
+}
+
+function updateCustomPrice(id, value) {
+  const item = orderItems.find(i => i.id === id);
+  if (!item) return;
+  const v = parseFloat(value);
+  item.customPrice = (!isNaN(v) && v > 0) ? v : null;
+  renderOrderItems();
+  updateSummary();
+}
+
+function overrideLogisticsFinal(value) {
+  const v = Math.max(0, parseFloat(value) || 0);
+  document.getElementById('logistics-cost').value = v;
+  updateSummary();
+}
 
 const LOGISTICS_PRICES = {
   '6wheel':       { A:2500, B:3200, C:4500, D:null,  E:null },
@@ -1537,7 +1575,7 @@ function buildPLCard(p) {
 // ════════════════════════════════════════
 function addOrderRow() {
   const id = Date.now();
-  orderItems.push({ id, sku: '', qty: 1 });
+  orderItems.push({ id, sku: '', qty: 1, customPrice: null });
   renderOrderItems();
 }
 function removeOrderRow(id) {
@@ -1546,7 +1584,11 @@ function removeOrderRow(id) {
 }
 function updateItem(id, field, value) {
   const item = orderItems.find(i => i.id === id);
-  if (item) { item[field] = value; renderOrderItems(); }
+  if (item) {
+    item[field] = value;
+    if (field === 'sku') item.customPrice = null;
+    renderOrderItems();
+  }
 }
 function renderOrderItems() {
   const container = document.getElementById('order-items');
@@ -1556,6 +1598,8 @@ function renderOrderItems() {
   }
   container.innerHTML = orderItems.map(item => {
     const p = products.find(x => x.sku === item.sku);
+    const unitPrice = p ? getItemPrice(item, p) : 0;
+    const isCustom = p && item.customPrice != null && parseFloat(item.customPrice) > 0 && parseFloat(item.customPrice) !== p.price;
     const wBadge = p?.weight ? '<span class="weight-badge">🔒 ' + p.weight + ' kg/เส้น' + (p.pricekg?'  ·  ฿'+p.pricekg+'/kg':'') + '</span>' : '';
     const totalWt = p?.weight && item.qty ? '<span class="weight-badge">รวม: ' + (parseFloat(p.weight)*item.qty).toFixed(2) + ' kg</span>' : '';
     return '<div class="order-row">' +
@@ -1569,8 +1613,12 @@ function renderOrderItems() {
         '<input type="number" value="' + item.qty + '" min="1" onchange="updateItem(' + item.id + ',\'qty\',parseInt(this.value)||1)" style="text-align:center;width:70px;font-size:16px;font-weight:600;">' +
         '<button class="btn-qty" onclick="updateItem(' + item.id + ',\'qty\',' + item.qty + '+1)">+</button></div>' +
         '<div class="text-muted" style="margin-top:4px;">' + (p?.unit||'เส้น') + '</div></div>' +
-      '<div><label>ราคา/เส้น</label><div style="font-family:var(--mono);font-size:15px;font-weight:600;padding:9px 0;">฿' + (p?p.price.toLocaleString():'—') + '</div></div>' +
-      '<div><label>รวม</label><div class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">฿' + (p?(p.price*item.qty).toLocaleString():'—') + '</div></div>' +
+      '<div><label>ราคา/เส้น</label>' +
+        (p ? '<input type="number" class="editable-price-input" value="' + unitPrice + '" min="0" step="1" oninput="updateCustomPrice(' + item.id + ', this.value)">' +
+             '<div class="editable-price-note">' + (isCustom ? 'แก้เองจาก ฿' + p.price.toLocaleString() : 'จาก Sheet') + '</div>' :
+             '<div style="font-family:var(--mono);font-size:15px;font-weight:600;padding:9px 0;">—</div>') +
+      '</div>' +
+      '<div><label>รวม</label><div class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">฿' + (p?(unitPrice*item.qty).toLocaleString():'—') + '</div></div>' +
       '<div><label>&nbsp;</label><button class="btn-icon" onclick="removeOrderRow(' + item.id + ')" title="ลบ">✕</button></div>' +
     '</div>';
   }).join('');
@@ -1583,20 +1631,49 @@ function renderOrderItems() {
 function quickSearch(query) {
   const el = document.getElementById('quick-search-results');
   if (!query || query.length < 2) { el.innerHTML = ''; return; }
-  const q = query.toLowerCase();
-  const matches = products.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)).slice(0, 8);
+
+  function normalizeSearch(s) {
+    return String(s || '')
+      .toLowerCase()
+      .replace(/½/g, ' 1/2 ')
+      .replace(/¼/g, ' 1/4 ')
+      .replace(/¾/g, ' 3/4 ')
+      .replace(/1\s*1\/2|1-1\/2|1\.5/g, '1/2')
+      .replace(/["“”″]/g, ' in ')
+      .replace(/[×x]/g, ' x ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function esc(s) {
+    return String(s || '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+  }
+
+  const q = normalizeSearch(query);
+  const terms = q.split(/\s+/).filter(Boolean);
+  const scored = products.map(p => {
+    const hay = normalizeSearch([p.name, p.sku, p.cat, p.size, p.thick, p.len].join(' '));
+    const all = terms.every(t => hay.includes(t));
+    if (!all) return null;
+    let score = 0;
+    if (hay.includes(q)) score += 100;
+    if (normalizeSearch(p.name).startsWith(q)) score += 50;
+    score += terms.reduce((sum, t) => sum + (hay.includes(t) ? 5 : 0), 0);
+    return { p, score };
+  }).filter(Boolean).sort((a,b) => b.score - a.score || a.p.name.localeCompare(b.p.name, 'th'));
+
+  const matches = scored.slice(0, 40).map(x => x.p);
   if (!matches.length) { el.innerHTML = '<div class="text-muted" style="padding:10px;text-align:center;">ไม่พบสินค้า</div>'; return; }
   el.innerHTML = matches.map(p =>
-    '<div class="search-result-item" onclick="quickAddProduct(\'' + p.sku + '\')">' +
-      '<div><div class="search-result-sku">' + p.sku + '</div><div class="search-result-name">' + p.name + '</div></div>' +
+    '<div class="search-result-item" data-sku="' + esc(p.sku) + '" onclick="quickAddProduct(this.dataset.sku)">' +
+      '<div><div class="search-result-sku">' + esc(p.sku) + '</div><div class="search-result-name">' + esc(p.name) + '</div></div>' +
       '<div class="search-result-price">฿' + p.price.toLocaleString() + '</div>' +
     '</div>'
-  ).join('');
+  ).join('') + (scored.length > 40 ? '<div class="text-muted" style="padding:8px;text-align:center;">แสดง 40 จาก ' + scored.length + ' รายการ — พิมพ์เพิ่มเพื่อกรอง</div>' : '');
 }
 function quickAddProduct(sku) {
   const existing = orderItems.find(i => i.sku === sku);
   if (existing) { existing.qty += 1; showToast('✓ เพิ่มจำนวน +1'); }
-  else { orderItems.push({ id: Date.now(), sku, qty: 1 }); showToast('✓ เพิ่มสินค้าแล้ว'); }
+  else { orderItems.push({ id: Date.now(), sku, qty: 1, customPrice: null }); showToast('✓ เพิ่มสินค้าแล้ว'); }
   document.getElementById('quick-search').value = '';
   document.getElementById('quick-search-results').innerHTML = '';
   renderOrderItems(); updateTotalWeight(); loadStaff();
@@ -1615,29 +1692,25 @@ function updateSummary() {
     for (const item of orderItems) {
       const p = products.find(x => x.sku === item.sku);
       if (!p || !item.qty) continue;
-      const sub = p.price * item.qty;
+      const unitPrice = getItemPrice(item, p);
+      const sub = unitPrice * item.qty;
       const wt  = p.weight ? parseFloat(p.weight) * item.qty : 0;
       subtotalGoods += sub; totalWeight += wt;
-      lines.push({ name: p.name, qty: item.qty, unit: p.unit, subtotal: sub, weight: wt, pricekg: p.pricekg });
+      lines.push({ name: p.name, qty: item.qty, unit: p.unit, unitPrice, subtotal: sub, weight: wt, pricekg: p.pricekg });
     }
     const logistics = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
     const vatRate   = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
-    // Gross-up: price = Cont ÷ (1 - fee%) for card; Cont × (1 - 0.02) for transfer
     const fee = selectedPayment.fee != null ? selectedPayment.fee : 0;
     const type = selectedPayment.type || 'transfer';
     let grossSub;
-    if (type === 'transfer') {
-      grossSub = subtotalGoods; // Cont price, no adjustment
-    } else {
-      grossSub = Math.ceil(subtotalGoods / (1 - fee/100)); // gross-up for bank fees
-    }
-    // Apply sales discount
+    if (type === 'transfer') grossSub = subtotalGoods;
+    else grossSub = Math.ceil(subtotalGoods / (1 - fee/100));
+
     const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
     const grossSubAfterDisc = Math.max(0, grossSub - salesDisc);
     const grandVAT  = Math.ceil((grossSubAfterDisc + logistics) * vatRate / 100);
     const grandTotal= grossSubAfterDisc + logistics + grandVAT;
 
-    // Internal summary
     const summaryEl = document.getElementById('internal-summary');
     if (lines.length === 0) {
       summaryEl.innerHTML = '<div class="text-muted" style="text-align:center;padding:16px;">ยังไม่มีรายการ</div>';
@@ -1645,19 +1718,19 @@ function updateSummary() {
       summaryEl.innerHTML = lines.map(l =>
         '<div class="summary-line internal-line"><span class="label">' + l.name + ' × ' + l.qty + '</span>' +
         '<div style="text-align:right;"><div class="value">฿' + l.subtotal.toLocaleString() + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);">฿' + l.unitPrice.toLocaleString() + ' / ' + l.unit + '</div>' +
         (l.weight ? '<div style="font-size:11px;color:var(--int);">' + l.weight.toFixed(2) + ' kg' + (l.pricekg?' · ฿'+l.pricekg+'/kg':'') + '</div>' : '') +
         '</div></div>'
       ).join('') +
       (totalWeight>0 ? '<div class="summary-line internal-line"><span class="label">🔒 น้ำหนักรวม</span><span class="value">' + totalWeight.toFixed(2) + ' kg</span></div>' : '') +
-      (logistics>0   ? '<div class="summary-line"><span class="label">🚚 ค่าขนส่ง</span><span class="value">฿' + logistics.toLocaleString() + '</span></div>' : '');
+      (logistics>0   ? '<div class="summary-line"><span class="label">🚚 ค่าขนส่ง</span><span class="value">฿' + logistics.toLocaleString() + '</span></div>' : '') +
+      (salesDisc>0   ? '<div class="summary-line"><span class="label">✂️ ส่วนลดพิเศษ</span><span class="value" style="color:var(--green);">-฿' + salesDisc.toLocaleString() + '</span></div>' : '') +
+      (grandVAT>0    ? '<div class="summary-line"><span class="label">🧾 VAT ' + vatRate + '%</span><span class="value">฿' + grandVAT.toLocaleString() + '</span></div>' : '');
     }
     document.getElementById('total-price').textContent = '฿' + grandTotal.toLocaleString();
     const gtEl = document.getElementById('grand-total-display');
     if (gtEl) gtEl.textContent = '฿' + grandTotal.toLocaleString();
 
-    // Payment cards — gross-up formula: price = Cont ÷ (1 - fee%)
-    // Bank transfer: Cont × 1.00 (no adjustment — this is the base SteelDeal price)
-    // Card types: Cont ÷ (1 - fee/100) so net after bank charges = Cont
     const payDefs = [
       { id:'transfer', months:0,  fee:0,     type:'transfer' },
       { id:'10',       months:10, fee:13.21, type:'card' },
@@ -1671,29 +1744,25 @@ function updateSummary() {
       { id:'2',        months:2,  fee:5.21,  type:'card' },
       { id:'card',     months:0,  fee:3.21,  type:'card' },
     ];
+    let base10Val = 0;
+    const totalsById = {};
     for (const opt of payDefs) {
-      let grossPrice;
-      if (opt.type === 'transfer') {
-        grossPrice = subtotalGoods; // Cont price, no adjustment
-      } else {
-        grossPrice = Math.ceil(subtotalGoods / (1 - opt.fee/100)); // gross-up
-      }
-      // Apply sales discount
-      const _sd = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
-      grossPrice = Math.max(0, grossPrice - _sd);
-      const tot = grossPrice + logistics;
+      let grossPrice = opt.type === 'transfer' ? subtotalGoods : Math.ceil(subtotalGoods / (1 - opt.fee/100));
+      grossPrice = Math.max(0, grossPrice - salesDisc);
+      const vatForPayment = Math.ceil((grossPrice + logistics) * vatRate / 100);
+      const tot = grossPrice + logistics + vatForPayment;
+      totalsById[opt.id] = tot;
+      if (opt.id === '10') base10Val = tot;
       const te = document.getElementById('pay-' + opt.id);
       const se = document.getElementById('pay-' + opt.id + '-sub');
       if (te) te.textContent = '฿' + tot.toLocaleString();
       if (se && opt.months > 0) se.textContent = 'เดือนละ ฿' + Math.ceil(tot/opt.months).toLocaleString();
-      var saveEl = document.getElementById('pay-' + opt.id + '-save');
-      if (saveEl) {
-        var base10El = document.getElementById('pay-10');
-        var base10Val = base10El ? parseFloat(base10El.textContent.replace(/[฿,]/g,'')) : 0;
-        if (base10Val > 0 && tot > 0 && opt.id !== '10') {
-          var savePct = Math.round((1 - tot / base10Val) * 100);
-          saveEl.textContent = savePct > 0 ? 'ประหยัด ' + savePct + '%' : '';
-        }
+    }
+    for (const opt of payDefs) {
+      const saveEl = document.getElementById('pay-' + opt.id + '-save');
+      if (saveEl && base10Val > 0 && totalsById[opt.id] > 0 && opt.id !== '10') {
+        const savePct = Math.round((1 - totalsById[opt.id] / base10Val) * 100);
+        saveEl.textContent = savePct > 0 ? 'ประหยัด ' + savePct + '%' : '';
       }
     }
   } catch(e) { console.error(e); } finally { isUpdating = false; }
@@ -1724,32 +1793,25 @@ function generateQuote() {
   for (const item of orderItems) {
     const p = products.find(x => x.sku === item.sku);
     if (!p || !item.qty) continue;
-    const sub = p.price * item.qty; subtotalGoods += sub;
-    lines.push('  ▸ ' + p.name + '\n     ' + item.qty + ' ' + p.unit + ' × ฿' + p.price.toLocaleString() + ' = ฿' + sub.toLocaleString());
+    const unitPrice = getItemPrice(item, p);
+    const sub = unitPrice * item.qty; subtotalGoods += sub;
+    lines.push('  ▸ ' + p.name + '\n     ' + item.qty + ' ' + p.unit + ' × ฿' + unitPrice.toLocaleString() + ' = ฿' + sub.toLocaleString());
   }
   if (!lines.length) { document.getElementById('quote-output').textContent = '⚠️ กรุณาเพิ่มสินค้าก่อน'; return; }
   const fee    = selectedPayment.fee != null ? selectedPayment.fee : 0;
   const type   = selectedPayment.type || 'transfer';
   const months = selectedPayment.months || 0;
-  let grossSub;
-  if (type === 'transfer') {
-    grossSub = subtotalGoods; // Cont price, no adjustment
-  } else {
-    grossSub = Math.ceil(subtotalGoods / (1 - fee/100)); // gross-up
-  }
+  let grossSub = type === 'transfer' ? subtotalGoods : Math.ceil(subtotalGoods / (1 - fee/100));
   const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
   const discReason = salesDisc > 0 ? (document.getElementById('discount-reason')?.value || '') : '';
   grossSub = Math.max(0, grossSub - salesDisc);
   const vat     = Math.ceil((grossSub + logistics) * vatRate / 100);
   const grand   = grossSub + logistics + vat;
-  const feeAmt  = grossSub - subtotalGoods; // difference from Cont
 
   let payLine = '';
-  if (type === 'transfer') {
-    payLine = '🏦 โอนเงิน: ฿' + grand.toLocaleString();
-  } else if (months === 0) {
-    payLine = '💳 บัตรเครดิต เงินสด: ฿' + grand.toLocaleString();
-  } else {
+  if (type === 'transfer') payLine = '🏦 โอนเงิน: ฿' + grand.toLocaleString();
+  else if (months === 0) payLine = '💳 บัตรเครดิต เงินสด: ฿' + grand.toLocaleString();
+  else {
     const pm = Math.ceil(grand/months);
     payLine = '📅 ผ่อน ' + months + ' เดือน: ฿' + grand.toLocaleString() + '\n   เดือนละ ~฿' + pm.toLocaleString();
   }
@@ -1757,7 +1819,7 @@ function generateQuote() {
   const salesDiscLine = salesDisc > 0 ? '  ✂️ ส่วนลดพิเศษ' + (discReason ? ' (' + discReason + ')' : '') + ': -฿' + salesDisc.toLocaleString() + '\n' : '';
   const priceBk = '  💵 ราคาสินค้า: ฿' + subtotalGoods.toLocaleString() + '\n' + salesDiscLine;
   const logLine = logistics>0 ? '  🚚 ค่าขนส่ง: ฿' + logistics.toLocaleString() + '\n' : '';
-  const vatLine = vat>0 ? '  🧾 VAT 7%:  ฿' + vat.toLocaleString() + '\n' : '';
+  const vatLine = vat>0 ? '  🧾 VAT ' + vatRate + '%:  ฿' + vat.toLocaleString() + '\n' : '';
   const quote = '━━━━━━━━━━━━━━━━━━━━━━━━\n🔩 SteelDeal ใบเสนอราคา\n━━━━━━━━━━━━━━━━━━━━━━━━\n📅 วันที่: ' + dateStr + '\n👤 ลูกค้า: ' + custName + '\n' + (custCtx?'📞 '+custCtx+'\n':'') + (custAddr?'📍 '+custAddr+'\n':'') + '\n📦 รายการสินค้า:\n' + lines.join('\n') + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n' + priceBk + logLine + vatLine + '  ──────────────────────\n  💰 ยอดรวมสุทธิ: ฿' + grand.toLocaleString() + '\n\n' + payLine + '\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n✅ บริการของเรา:\n  • ผ่อน 0% สูงสุด 10 เดือน\n  • ส่งถึงที่ครบวงจร\n  • EEC · Bang Phli\n\n📞 LINE: @steeldeal' + (notes?'\n\n📝 หมายเหตุ: '+notes:'');
   document.getElementById('quote-output').textContent = quote;
 }
@@ -1804,7 +1866,7 @@ function calculateLogistics() {
   const prov  = document.getElementById('destination-province')?.value;
   const helper= document.getElementById('helper-checkbox')?.checked || false;
   const costEl= document.getElementById('logistics-cost');
-  if (!truck || !prov) { costEl.value = 0; updateSummary(); document.getElementById('logistics-breakdown').style.display = 'none'; return; }
+  if (!truck || !prov) { costEl.value = 0; const finalInput = document.getElementById('logistics-final'); if (finalInput) finalInput.value = 0; updateSummary(); document.getElementById('logistics-breakdown').style.display = 'none'; return; }
   const base = LOGISTICS_PRICES[truck][prov];
   if (base === 'manual' || base === null) {
     document.getElementById('logistics-breakdown').style.display = 'none';
@@ -1817,7 +1879,7 @@ function calculateLogistics() {
   const helperCost = helper ? 200 : 0;
   const beforeDisc = base + helperCost;
   let orderTotal = 0;
-  for (const item of orderItems) { const p = products.find(x=>x.sku===item.sku); if (p&&item.qty) orderTotal+=p.price*item.qty; }
+  for (const item of orderItems) { const p = products.find(x=>x.sku===item.sku); if (p&&item.qty) orderTotal+=getItemPrice(item, p)*item.qty; }
   const discInfo = calculateLogisticsDiscount(orderTotal);
   const final = Math.max(0, beforeDisc - discInfo.discount);
   document.getElementById('logistics-base').textContent = '฿' + base.toLocaleString();
@@ -1832,7 +1894,8 @@ function calculateLogistics() {
     document.getElementById('next-unlock-box').style.display = 'block';
     document.getElementById('next-unlock-message').textContent = discInfo.nextUnlockMessage;
   } else { document.getElementById('next-unlock-box').style.display = 'none'; }
-  document.getElementById('logistics-final').textContent = '฿' + final.toLocaleString();
+  const finalInput = document.getElementById('logistics-final');
+  if (finalInput) finalInput.value = final;
   costEl.value = final;
   updateSummary();
 }
@@ -1851,7 +1914,10 @@ function calculateLogisticsDiscount(orderTotal) {
 function updateManualLogistics() {
   const manual = parseFloat(document.getElementById('logistics-manual').value) || 0;
   const helper = document.getElementById('helper-checkbox').checked;
-  document.getElementById('logistics-cost').value = manual + (helper?200:0);
+  const final = manual + (helper?200:0);
+  document.getElementById('logistics-cost').value = final;
+  const finalInput = document.getElementById('logistics-final');
+  if (finalInput) finalInput.value = final;
   updateSummary();
 }
 function togglePricingTable() {
@@ -2038,8 +2104,9 @@ async function generatePO() {
   for (const item of orderItems) {
     const p = products.find(x => x.sku === item.sku);
     if (!p || !item.qty) continue;
-    const sub = p.price * item.qty; subtotalGoods += sub;
-    lines.push({ name: p.name, qty: item.qty, unit: p.unit, unitPrice: p.price, subtotal: sub });
+    const unitPrice = getItemPrice(item, p);
+    const sub = unitPrice * item.qty; subtotalGoods += sub;
+    lines.push({ name: p.name, qty: item.qty, unit: p.unit, unitPrice: unitPrice, subtotal: sub });
   }
   if (!lines.length) { showToast('⚠️ กรุณาเพิ่มสินค้าก่อน','error'); return; }
   const fee   = selectedPayment.fee != null ? selectedPayment.fee : 0;
@@ -2048,6 +2115,8 @@ async function generatePO() {
   let grossSub;
   if (type === 'transfer') { grossSub = subtotalGoods; } // Cont price, no adjustment
   else { grossSub = Math.ceil(subtotalGoods / (1 - fee/100)); } // gross-up
+  const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
+  grossSub = Math.max(0, grossSub - salesDisc);
   const vatAmt  = Math.ceil((grossSub + logistics) * vatRate / 100);
   const grandTotal = grossSub + logistics + vatAmt;
   const anchor10 = Math.ceil(subtotalGoods / (1 - 13.21/100));
@@ -2067,6 +2136,7 @@ async function generatePO() {
     '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.unitPrice.toLocaleString('th-TH')+'</td>' +
     '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.subtotal.toLocaleString('th-TH')+'</td></tr>'
   ).join('');
+  const discountRow = salesDisc>0 ? '<tr><td style="padding:4px 12px;text-align:right;color:#16A34A;" colspan="1">ส่วนลดพิเศษ</td><td style="padding:4px 12px;text-align:right;color:#16A34A;">-'+salesDisc.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
   const logRow = logistics>0 ? '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าขนส่ง</td><td style="padding:4px 12px;text-align:right;">'+logistics.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
   const vatRow = vatAmt>0 ? '<tr><td style="padding:4px 12px;text-align:right;">ภาษีมูลค่าเพิ่ม 7%</td><td style="padding:4px 12px;text-align:right;">'+vatAmt.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
   const el = document.getElementById('po-hidden');
