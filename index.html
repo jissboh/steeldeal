@@ -1123,6 +1123,18 @@ const SHEET_TAB      = '🔍 Tool Export';
 const STAFF_TAB      = '👥 Staff';
 
 function makeSheetCsvUrl(tabName) {
+  // Use gid= (numeric) not sheet= (name) — more reliable per Google Sheets gviz API
+  const GID_MAP = {
+    '🔍 Tool Export': '692965963',
+    '👥 Staff':       '1771826324',
+  };
+  const gid = GID_MAP[tabName];
+  if (gid) {
+    return 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
+           '/gviz/tq?tqx=out:csv&gid=' + gid +
+           '&cachebust=' + Date.now();
+  }
+  // Fallback to sheet name for unknown tabs
   return 'https://docs.google.com/spreadsheets/d/' + SHEET_ID +
          '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tabName) +
          '&cachebust=' + Date.now();
@@ -1160,11 +1172,24 @@ const DISCOUNT_TIERS = [
 // SHEET SYNC — load from Google Sheets Tool Export tab
 // ════════════════════════════════════════
 function splitRow(line) {
-  const cols = []; let cur = '', inQ = false;
-  for (const ch of line) {
-    if (ch === '"') inQ = !inQ;
-    else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
-    else cur += ch;
+  // RFC 4180 — fixes products with " in name (แป๊บกลมดำ 1½", 2", etc.)
+  // Old toggle logic broke on "" escaped quotes, shifting all columns
+  const cols = []; let cur = '', inQ = false, i = 0;
+  while (i < line.length) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          cur += '"'; i += 2; // "" inside quoted field = literal "
+        } else {
+          inQ = false; i++;   // closing quote
+        }
+      } else { cur += ch; i++; }
+    } else {
+      if (ch === '"') { inQ = true; i++; }
+      else if (ch === ',') { cols.push(cur.trim()); cur = ''; i++; }
+      else { cur += ch; i++; }
+    }
   }
   cols.push(cur.trim()); return cols;
 }
