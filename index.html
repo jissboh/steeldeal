@@ -1251,7 +1251,16 @@ async function loadFromSheets() {
       name = name.replace(/\s+/g, ' ').trim();
 
       const skuRaw = [cat, baseName, size, thick, len].join('-');
-      const sku = skuRaw.replace(/[^\w\u0E00-\u0E7F\-]/g, '_').substring(0, 50);
+      const skuClean = skuRaw
+        .replace(/½/g, '1_2')
+        .replace(/¼/g, '1_4')
+        .replace(/¾/g, '3_4')
+        .replace(/["“”″]/g, 'in')
+        .replace(/[^\w\u0E00-\u0E7F\-]/g, '_');
+
+      // Keep more of the value so similar products do not collapse into one SKU.
+      // Previous version used substring(0, 50), which can create duplicate SKUs and hide rows.
+      const sku = skuClean.substring(0, 120);
 
       let unit = 'เส้น';
       if (cat === 'แผ่นเหล็ก') unit = 'แผ่น';
@@ -1321,7 +1330,14 @@ async function loadFromSheets() {
         };
         if (row.cat) currentCat = row.cat.trim();
         const p = makeProduct(row, currentCat);
-        if (p && !seen.has(p.sku)) { seen.add(p.sku); imported.push(p); }
+        if (p) {
+          let uniqueSku = p.sku;
+          let dup = 2;
+          while (seen.has(uniqueSku)) uniqueSku = p.sku + '-D' + (dup++);
+          p.sku = uniqueSku;
+          seen.add(p.sku);
+          imported.push(p);
+        }
       }
       return imported;
     }
@@ -1354,7 +1370,14 @@ async function loadFromSheets() {
         };
 
         const p = makeProduct(row, currentCat);
-        if (p && !seen.has(p.sku)) { seen.add(p.sku); imported.push(p); }
+        if (p) {
+          let uniqueSku = p.sku;
+          let dup = 2;
+          while (seen.has(uniqueSku)) uniqueSku = p.sku + '-D' + (dup++);
+          p.sku = uniqueSku;
+          seen.add(p.sku);
+          imported.push(p);
+        }
       }
       return imported;
     }
