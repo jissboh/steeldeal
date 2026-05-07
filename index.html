@@ -859,7 +859,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
           <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
             <button class="btn btn-ghost" onclick="generateQuote()">📝 สร้างใบเสนอราคา</button>
             <button class="btn btn-ghost" onclick="copyQuote()">📋 คัดลอก</button>
-            <button class="btn btn-primary" onclick="generatePO()">📄 PDF ใบเสนอราคา</button>
+            <button class="btn btn-primary" onclick="generatePO()">🖼️ JPG ใบเสนอราคา</button>
             <button class="btn btn-ghost" onclick="copyCustomerInfoTemplate()">📲 ถามข้อมูลลูกค้า</button>
           </div>
           <div id="quote-output">กดปุ่ม "สร้างใบเสนอราคา" เพื่อสร้างข้อความส่งให้ลูกค้า...</div>
@@ -2351,7 +2351,7 @@ dz?.addEventListener('drop', e => {
 // INIT — auto sync from sheets on load
 // ════════════════════════════════════════
 // ════════════════════════════════════════
-// PDF PO GENERATION
+// JPG QUOTATION GENERATION
 // ════════════════════════════════════════
 async function generatePO() {
   const custName    = document.getElementById('cust-name').value || 'ลูกค้า';
@@ -2474,7 +2474,7 @@ async function generatePO() {
       '<strong style="color:#16A34A;">เลขที่บัญชี: 028-3-47258-2</strong></div></div>' +
   '</div>';
   el.style.display = 'block';
-  showToast('⏳ กำลังสร้าง PDF...');
+  showToast('⏳ กำลังสร้าง JPG...');
   setTimeout(async () => {
     try {
       const canvas = await html2canvas(el.firstElementChild, { scale: 2, backgroundColor: '#ffffff', logging: false });
@@ -2494,14 +2494,26 @@ async function generatePO() {
         logistics: logistics,
         vatAmt: vatAmt
       });
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF('p','mm','a4');
-      const imgData = canvas.toDataURL('image/png');
-      const imgW = 210, imgH = (canvas.height * imgW) / canvas.width;
-      pdf.addImage(imgData,'PNG',0,0,imgW,Math.min(imgH,297));
-      pdf.save('SteelDeal_' + poNumber + '_' + custName + '.pdf');
-      showToast('✓ ดาวน์โหลด PDF สำเร็จ!');
-    } catch(e) { el.style.display='none'; showToast('⚠️ PDF ไม่สำเร็จ: '+e.message,'error'); }
+      // Export as high-quality JPG instead of PDF.
+      // Quality 0.98 keeps visual quality very close to the previous PDF output,
+      // while giving customers a LINE-friendly image preview.
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mi = String(now.getMinutes()).padStart(2, '0');
+      const fileName = `QT-${dd}${mm}-${hh}${mi}.jpg`;
+
+      const link = document.createElement('a');
+      link.href = imgData;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('✓ ดาวน์โหลด JPG สำเร็จ!');
+    } catch(e) { el.style.display='none'; showToast('⚠️ JPG ไม่สำเร็จ: '+e.message,'error'); }
   }, 600);
 }
 
