@@ -1246,7 +1246,7 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
       totalWeight += weight;
       totalQty += qty;
       line = {
-        product: null, isCustom: true, name, qty, unit,
+        id: item.id, product: null, isCustom: true, name, qty, unit,
         unitPrice, subtotal, weight, pricekg: '',
         deliveryShare: 0, displayUnitPrice: unitPrice, displaySubtotal: subtotal
       };
