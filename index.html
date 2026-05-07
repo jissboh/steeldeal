@@ -183,6 +183,31 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 }
 .editable-price-input:focus, .editable-logistics-input:focus { border-color: var(--red); }
 .editable-price-note { font-size: 10px; color: var(--muted); margin-top: 3px; }
+.custom-product-box {
+  background: #FFFBEB;
+  border: 1px solid #FCD34D;
+  border-radius: 8px;
+  padding: 8px;
+  margin-top: 6px;
+}
+.custom-product-grid {
+  display: grid;
+  grid-template-columns: 1.3fr .8fr .7fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.custom-product-grid label { font-size: 10px; margin-bottom: 2px; }
+.custom-product-grid input, .custom-product-grid select { padding: 6px 8px; font-size: 13px; }
+.custom-product-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--int);
+  margin-top: 6px;
+  cursor: pointer;
+}
 
 .delivery-mode-box {
   margin-top: 12px;
@@ -556,7 +581,10 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">รายการสั่งซื้อ</span>
-          <button class="btn btn-primary" onclick="addOrderRow()">+ เพิ่มสินค้า</button>
+          <div class="flex">
+            <button class="btn btn-ghost" onclick="addCustomOrderRow()">+ สินค้าโป๊ว</button>
+            <button class="btn btn-primary" onclick="addOrderRow()">+ เพิ่มสินค้า</button>
+          </div>
         </div>
         <div class="panel-body" id="order-items">
           <div class="empty-state" id="empty-order">
@@ -1043,12 +1071,8 @@ function onDiscountChange() {
   const badge   = document.getElementById('discount-panel-badge');
   const reqNote = document.getElementById('discount-reason-required');
 
-  // Get current subtotal goods (before fee grossup)
-  let subtotal = 0;
-  orderItems.forEach(item => {
-    const p = products.find(x => x.sku === item.sku);
-    if (p) subtotal += getItemPrice(item, p) * item.qty;
-  });
+  // Get current subtotal goods (before fee grossup), including manual/custom products.
+  const subtotal = buildOrderCalcLines(0, false).subtotalGoods;
 
   // Convert to ฿
   let discThb = type === 'pct' ? Math.round(subtotal * amtRaw / 100) : Math.round(amtRaw);
@@ -1205,20 +1229,41 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
   let totalQty = 0;
 
   for (const item of orderItems) {
-    const p = products.find(x => x.sku === item.sku);
-    if (!p || !item.qty) continue;
     const qty = parseFloat(item.qty) || 0;
-    const unitPrice = getItemPrice(item, p);
-    const subtotal = unitPrice * qty;
-    const weight = p.weight ? (parseFloat(p.weight) || 0) * qty : 0;
-    subtotalGoods += subtotal;
-    totalWeight += weight;
-    totalQty += qty;
-    lines.push({
-      product: p, name: p.name, qty, unit: p.unit,
-      unitPrice, subtotal, weight, pricekg: p.pricekg,
-      deliveryShare: 0, displayUnitPrice: unitPrice, displaySubtotal: subtotal
-    });
+    if (!qty) continue;
+
+    let line;
+    if (item.customProduct) {
+      const unitPrice = getItemPrice(item, null);
+      const weightPerUnit = parseFloat(item.customWeight) || 0;
+      const subtotal = unitPrice * qty;
+      const weight = weightPerUnit * qty;
+      const name = (item.customName || '').trim() || 'สินค้าโป๊ว';
+      const unit = item.customUnit || 'เส้น';
+      subtotalGoods += subtotal;
+      totalWeight += weight;
+      totalQty += qty;
+      line = {
+        product: null, isCustom: true, name, qty, unit,
+        unitPrice, subtotal, weight, pricekg: '',
+        deliveryShare: 0, displayUnitPrice: unitPrice, displaySubtotal: subtotal
+      };
+    } else {
+      const p = products.find(x => x.sku === item.sku);
+      if (!p) continue;
+      const unitPrice = getItemPrice(item, p);
+      const subtotal = unitPrice * qty;
+      const weight = p.weight ? (parseFloat(p.weight) || 0) * qty : 0;
+      subtotalGoods += subtotal;
+      totalWeight += weight;
+      totalQty += qty;
+      line = {
+        product: p, isCustom: false, name: p.name, qty, unit: p.unit,
+        unitPrice, subtotal, weight, pricekg: p.pricekg,
+        deliveryShare: 0, displayUnitPrice: unitPrice, displaySubtotal: subtotal
+      };
+    }
+    lines.push(line);
   }
 
   if (includeDelivery && logistics > 0 && lines.length) {
@@ -1244,11 +1289,46 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
   return { lines, subtotalGoods, totalWeight, totalQty };
 }
 
+function escapeHTML(s) {
+  return String(s || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
 // Editable order price helper. Default comes from Google Sheet; sales can override per row.
 function getItemPrice(item, product) {
-  if (!product) return 0;
   const custom = parseFloat(item.customPrice);
-  return (!isNaN(custom) && custom > 0) ? custom : product.price;
+  if (!isNaN(custom) && custom > 0) return custom;
+  return product ? product.price : 0;
+}
+
+function updateItemSoft(id, field, value) {
+  // Soft update avoids rebuilding the row while user is typing.
+  const item = orderItems.find(i => i.id === id);
+  if (!item) return;
+  if (field === 'customWeight' || field === 'customPrice') {
+    const v = parseFloat(value);
+    item[field] = (!isNaN(v) && v > 0) ? v : null;
+  } else if (field === 'qty') {
+    item.qty = parseFloat(value) || 1;
+  } else {
+    item[field] = value;
+  }
+  updateRowTotal(id);
+  updateSummary();
+}
+
+function updateRowTotal(id) {
+  const item = orderItems.find(i => i.id === id);
+  const rowTotalEl = document.getElementById('row-total-' + id);
+  if (!item || !rowTotalEl) return;
+  const qty = parseFloat(item.qty) || 0;
+  let unitPrice = 0;
+  if (item.customProduct) {
+    unitPrice = getItemPrice(item, null);
+  } else {
+    const p = products.find(x => x.sku === item.sku);
+    unitPrice = p ? getItemPrice(item, p) : 0;
+  }
+  rowTotalEl.textContent = unitPrice ? '฿' + (unitPrice * qty).toLocaleString() : '—';
 }
 
 function updateCustomPrice(id, value) {
@@ -1258,15 +1338,7 @@ function updateCustomPrice(id, value) {
   if (!item) return;
   const v = parseFloat(value);
   item.customPrice = (!isNaN(v) && v > 0) ? v : null;
-
-  // Update this row's total immediately without rebuilding the whole order UI.
-  const p = products.find(x => x.sku === item.sku);
-  const rowTotalEl = document.getElementById('row-total-' + id);
-  if (p && rowTotalEl) {
-    const unitPrice = getItemPrice(item, p);
-    rowTotalEl.textContent = '฿' + (unitPrice * item.qty).toLocaleString();
-  }
-
+  updateRowTotal(id);
   updateSummary();
 }
 
@@ -1664,7 +1736,21 @@ function buildPLCard(p) {
 // ════════════════════════════════════════
 function addOrderRow() {
   const id = Date.now();
-  orderItems.push({ id, sku: '', qty: 1, customPrice: null });
+  orderItems.push({ id, sku: '', qty: 1, customPrice: null, customProduct: false });
+  renderOrderItems();
+}
+function addCustomOrderRow() {
+  const id = Date.now();
+  orderItems.push({
+    id,
+    sku: '',
+    qty: 1,
+    customProduct: true,
+    customName: '',
+    customWeight: null,
+    customPrice: null,
+    customUnit: 'เส้น'
+  });
   renderOrderItems();
 }
 function removeOrderRow(id) {
@@ -1673,11 +1759,30 @@ function removeOrderRow(id) {
 }
 function updateItem(id, field, value) {
   const item = orderItems.find(i => i.id === id);
-  if (item) {
-    item[field] = value;
-    if (field === 'sku') item.customPrice = null;
+  if (!item) return;
+  if (field === 'customProduct') {
+    item.customProduct = !!value;
+    if (item.customProduct) {
+      item.sku = '';
+      item.customUnit = item.customUnit || 'เส้น';
+      item.customName = item.customName || '';
+      item.customWeight = item.customWeight || null;
+      item.customPrice = item.customPrice || null;
+    } else {
+      item.customName = '';
+      item.customWeight = null;
+      item.customPrice = null;
+      item.customUnit = 'เส้น';
+    }
     renderOrderItems();
+    return;
   }
+  item[field] = value;
+  if (field === 'sku') {
+    item.customPrice = null;
+    item.customProduct = false;
+  }
+  renderOrderItems();
 }
 function renderOrderItems() {
   const container = document.getElementById('order-items');
@@ -1686,28 +1791,57 @@ function renderOrderItems() {
     updateSummary(); return;
   }
   container.innerHTML = orderItems.map(item => {
-    const p = products.find(x => x.sku === item.sku);
-    const unitPrice = p ? getItemPrice(item, p) : 0;
-    const isCustom = p && item.customPrice != null && parseFloat(item.customPrice) > 0 && parseFloat(item.customPrice) !== p.price;
+    const isCustomRow = !!item.customProduct;
+    const p = isCustomRow ? null : products.find(x => x.sku === item.sku);
+    const unitPrice = isCustomRow ? getItemPrice(item, null) : (p ? getItemPrice(item, p) : 0);
+    const isCustomPrice = p && item.customPrice != null && parseFloat(item.customPrice) > 0 && parseFloat(item.customPrice) !== p.price;
+    const qty = parseFloat(item.qty) || 1;
+    const customWeight = parseFloat(item.customWeight) || 0;
+    const customName = escapeHTML(item.customName || '');
     const wBadge = p?.weight ? '<span class="weight-badge">🔒 ' + p.weight + ' kg/เส้น' + (p.pricekg?'  ·  ฿'+p.pricekg+'/kg':'') + '</span>' : '';
-    const totalWt = p?.weight && item.qty ? '<span class="weight-badge">รวม: ' + (parseFloat(p.weight)*item.qty).toFixed(2) + ' kg</span>' : '';
-    return '<div class="order-row">' +
+    const totalWt = p?.weight && qty ? '<span class="weight-badge">รวม: ' + (parseFloat(p.weight)*qty).toFixed(2) + ' kg</span>' : '';
+    const customTotalWt = isCustomRow && customWeight && qty ? '<span class="weight-badge">รวม: ' + (customWeight*qty).toFixed(2) + ' kg</span>' : '';
+
+    const productCell = isCustomRow ?
+      '<div><label>สินค้า</label>' +
+        '<label class="custom-product-label"><input type="checkbox" checked onchange="updateItem(' + item.id + ',\'customProduct\',this.checked)"> สินค้าโป๊ว / สินค้านอกฐานข้อมูล</label>' +
+        '<div class="custom-product-box">' +
+          '<label>ชื่อสินค้า</label>' +
+          '<input type="text" value="' + customName + '" placeholder="เช่น เหล็กตัวพิเศษ / งานตัด / อุปกรณ์เสริม" oninput="updateItemSoft(' + item.id + ',\'customName\',this.value)">' +
+          '<div class="custom-product-grid">' +
+            '<div><label>น้ำหนัก/หน่วย (kg)</label><input type="number" min="0" step="0.01" value="' + (item.customWeight ?? '') + '" placeholder="0.00" oninput="updateItemSoft(' + item.id + ',\'customWeight\',this.value)"></div>' +
+            '<div><label>หน่วย</label><select onchange="updateItemSoft(' + item.id + ',\'customUnit\',this.value)">' +
+              '<option value="เส้น"' + ((item.customUnit||'เส้น')==='เส้น'?' selected':'') + '>เส้น</option>' +
+              '<option value="ชิ้น"' + (item.customUnit==='ชิ้น'?' selected':'') + '>ชิ้น</option>' +
+              '<option value="แผ่น"' + (item.customUnit==='แผ่น'?' selected':'') + '>แผ่น</option>' +
+              '<option value="ม้วน"' + (item.customUnit==='ม้วน'?' selected':'') + '>ม้วน</option>' +
+              '<option value="ชุด"' + (item.customUnit==='ชุด'?' selected':'') + '>ชุด</option>' +
+            '</select></div>' +
+            '<div><label>สถานะ</label><span class="weight-badge">Manual</span></div>' +
+          '</div>' +
+        '</div>' + customTotalWt + '</div>'
+      :
       '<div><label>สินค้า</label><select onchange="updateItem(' + item.id + ',\'sku\',this.value)" style="font-size:13px;">' +
         '<option value="">— เลือกสินค้า —</option>' +
-        products.map(x => '<option value="' + x.sku + '"' + (x.sku===item.sku?' selected':'') + '>' + x.name + '</option>').join('') +
-      '</select><div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">' +
-        (item.sku ? '<span class="sku-code">' + item.sku + '</span>' : '') + wBadge + totalWt +
-      '</div></div>' +
-      '<div><label>จำนวน</label><div class="flex"><button class="btn-qty" onclick="updateItem(' + item.id + ',\'qty\',Math.max(1,' + item.qty + '-1))">−</button>' +
-        '<input type="number" value="' + item.qty + '" min="1" onchange="updateItem(' + item.id + ',\'qty\',parseInt(this.value)||1)" style="text-align:center;width:70px;font-size:16px;font-weight:600;">' +
-        '<button class="btn-qty" onclick="updateItem(' + item.id + ',\'qty\',' + item.qty + '+1)">+</button></div>' +
-        '<div class="text-muted" style="margin-top:4px;">' + (p?.unit||'เส้น') + '</div></div>' +
-      '<div><label>ราคา/เส้น</label>' +
-        (p ? '<input type="number" class="editable-price-input" value="' + unitPrice + '" min="0" step="1" oninput="updateCustomPrice(' + item.id + ', this.value)" onblur="finishCustomPriceEdit(' + item.id + ')">' +
-             '<div class="editable-price-note">' + (isCustom ? 'แก้เองจาก ฿' + p.price.toLocaleString() : 'จาก Sheet') + '</div>' :
+        products.map(x => '<option value="' + x.sku + '"' + (x.sku===item.sku?' selected':'') + '>' + escapeHTML(x.name) + '</option>').join('') +
+      '</select>' +
+      '<label class="custom-product-label"><input type="checkbox" onchange="updateItem(' + item.id + ',\'customProduct\',this.checked)"> สินค้าโป๊ว</label>' +
+      '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">' +
+        (item.sku ? '<span class="sku-code">' + escapeHTML(item.sku) + '</span>' : '') + wBadge + totalWt +
+      '</div></div>';
+
+    return '<div class="order-row">' +
+      productCell +
+      '<div><label>จำนวน</label><div class="flex"><button class="btn-qty" onclick="updateItem(' + item.id + ',\'qty\',Math.max(1,' + qty + '-1))">−</button>' +
+        '<input type="number" value="' + qty + '" min="1" onchange="updateItem(' + item.id + ',\'qty\',parseFloat(this.value)||1)" style="text-align:center;width:70px;font-size:16px;font-weight:600;">' +
+        '<button class="btn-qty" onclick="updateItem(' + item.id + ',\'qty\',' + qty + '+1)">+</button></div>' +
+        '<div class="text-muted" style="margin-top:4px;">' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit||'เส้น')) + '</div></div>' +
+      '<div><label>ราคา/หน่วย</label>' +
+        ((p || isCustomRow) ? '<input type="number" class="editable-price-input" value="' + (unitPrice || '') + '" min="0" step="1" placeholder="0" oninput="updateCustomPrice(' + item.id + ', this.value)" onblur="finishCustomPriceEdit(' + item.id + ')">' +
+             '<div class="editable-price-note">' + (isCustomRow ? 'สินค้าโป๊ว' : (isCustomPrice ? 'แก้เองจาก ฿' + p.price.toLocaleString() : 'จาก Sheet')) + '</div>' :
              '<div style="font-family:var(--mono);font-size:15px;font-weight:600;padding:9px 0;">—</div>') +
       '</div>' +
-      '<div><label>รวม</label><div id="row-total-' + item.id + '" class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">฿' + (p?(unitPrice*item.qty).toLocaleString():'—') + '</div></div>' +
+      '<div><label>รวม</label><div id="row-total-' + item.id + '" class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">' + (unitPrice ? '฿' + (unitPrice*qty).toLocaleString() : '—') + '</div></div>' +
       '<div><label>&nbsp;</label><button class="btn-icon" onclick="removeOrderRow(' + item.id + ')" title="ลบ">✕</button></div>' +
     '</div>';
   }).join('');
@@ -1762,7 +1896,7 @@ function quickSearch(query) {
 function quickAddProduct(sku) {
   const existing = orderItems.find(i => i.sku === sku);
   if (existing) { existing.qty += 1; showToast('✓ เพิ่มจำนวน +1'); }
-  else { orderItems.push({ id: Date.now(), sku, qty: 1, customPrice: null }); showToast('✓ เพิ่มสินค้าแล้ว'); }
+  else { orderItems.push({ id: Date.now(), sku, qty: 1, customPrice: null, customProduct: false }); showToast('✓ เพิ่มสินค้าแล้ว'); }
   document.getElementById('quick-search').value = '';
   document.getElementById('quick-search-results').innerHTML = '';
   renderOrderItems(); updateTotalWeight(); loadStaff();
@@ -1935,8 +2069,13 @@ function recommendTruck(wt) {
 function updateTotalWeight() {
   let tw = 0;
   for (const item of orderItems) {
-    const p = products.find(x => x.sku === item.sku);
-    if (p?.weight && item.qty) tw += parseFloat(p.weight) * item.qty;
+    const qty = parseFloat(item.qty) || 0;
+    if (item.customProduct) {
+      tw += (parseFloat(item.customWeight) || 0) * qty;
+    } else {
+      const p = products.find(x => x.sku === item.sku);
+      if (p?.weight && qty) tw += parseFloat(p.weight) * qty;
+    }
   }
   const tons = tw / 1000;
   document.getElementById('total-weight-display').textContent = tons.toFixed(2) + ' ตัน';
@@ -1967,8 +2106,7 @@ function calculateLogistics() {
   document.getElementById('logistics-breakdown').style.display = 'block';
   const helperCost = helper ? 200 : 0;
   const beforeDisc = base + helperCost;
-  let orderTotal = 0;
-  for (const item of orderItems) { const p = products.find(x=>x.sku===item.sku); if (p&&item.qty) orderTotal+=getItemPrice(item, p)*item.qty; }
+  const orderTotal = buildOrderCalcLines(0, false).subtotalGoods;
   const discInfo = calculateLogisticsDiscount(orderTotal);
   const final = Math.max(0, beforeDisc - discInfo.discount);
   document.getElementById('logistics-base').textContent = '฿' + base.toLocaleString();
