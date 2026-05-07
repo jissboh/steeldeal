@@ -1217,7 +1217,9 @@ let includeDeliveryInProductPrice = false; // customer-facing presentation mode:
 
 function toggleIncludeDeliveryInProductPrice() {
   includeDeliveryInProductPrice = document.getElementById('include-delivery-toggle')?.checked || false;
-  updateSummary();
+  // Re-render order rows immediately so delivery-per-unit breakdown appears
+  // on existing products, not only on products added after the toggle.
+  renderOrderItems();
   const out = document.getElementById('quote-output');
   if (out && out.textContent && !out.textContent.includes('กดปุ่ม')) generateQuote();
 }
@@ -1371,7 +1373,7 @@ function finishCustomPriceEdit(id) {
 function overrideLogisticsFinal(value) {
   const v = Math.max(0, parseFloat(value) || 0);
   document.getElementById('logistics-cost').value = v;
-  updateSummary();
+  renderOrderItems();
 }
 
 const LOGISTICS_PRICES = {
@@ -2131,13 +2133,13 @@ function calculateLogistics() {
   const prov  = document.getElementById('destination-province')?.value;
   const helper= document.getElementById('helper-checkbox')?.checked || false;
   const costEl= document.getElementById('logistics-cost');
-  if (!truck || !prov) { costEl.value = 0; const finalInput = document.getElementById('logistics-final'); if (finalInput) finalInput.value = 0; updateSummary(); document.getElementById('logistics-breakdown').style.display = 'none'; return; }
+  if (!truck || !prov) { costEl.value = 0; const finalInput = document.getElementById('logistics-final'); if (finalInput) finalInput.value = 0; renderOrderItems(); document.getElementById('logistics-breakdown').style.display = 'none'; return; }
   const base = LOGISTICS_PRICES[truck][prov];
   if (base === 'manual' || base === null) {
     document.getElementById('logistics-breakdown').style.display = 'none';
     document.getElementById('manual-logistics').style.display = 'block';
     const manual = parseFloat(document.getElementById('logistics-manual').value) || 0;
-    costEl.value = manual + (helper?200:0); updateSummary(); return;
+    costEl.value = manual + (helper?200:0); renderOrderItems(); return;
   }
   document.getElementById('manual-logistics').style.display = 'none';
   document.getElementById('logistics-breakdown').style.display = 'block';
@@ -2161,7 +2163,7 @@ function calculateLogistics() {
   const finalInput = document.getElementById('logistics-final');
   if (finalInput) finalInput.value = final;
   costEl.value = final;
-  updateSummary();
+  renderOrderItems();
 }
 function calculateLogisticsDiscount(orderTotal) {
   let cur = { threshold:0, discount:0, label:null };
@@ -2182,7 +2184,7 @@ function updateManualLogistics() {
   document.getElementById('logistics-cost').value = final;
   const finalInput = document.getElementById('logistics-final');
   if (finalInput) finalInput.value = final;
-  updateSummary();
+  renderOrderItems();
 }
 function togglePricingTable() {
   const m = document.getElementById('pricing-table-modal');
