@@ -1047,7 +1047,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 // CONFIG
 // ════════════════════════════════════════
 // ─── APPS SCRIPT ENDPOINT (set after deploying) ───
-const APPS_SCRIPT_URL = const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbws_CAG31KeRS6nowM-pE_sf_jEStlf49GcGbS5Us8h00lXUkBxbYBA4JZU4NvMwTPSxw/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbws_CAG31KeRS6nowM-pE_sf_jEStlf49GcGbS5Us8h00lXUkBxbYBA4JZU4NvMwTPSxw/exec';
 
 // ─── STAFF MANAGEMENT ───
 let staffList = [];
@@ -1161,6 +1161,23 @@ async function logQuote(data) {
       body: JSON.stringify({ action: 'logQuote', ...data })
     });
   } catch(e) { console.warn('Quote log failed:', e); }
+}
+
+// ─── SAVE JPG TO DRIVE + LOG QUOTE IMAGE ───
+async function saveQuoteImageToDrive(data) {
+  if (!APPS_SCRIPT_URL) return;
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'saveQuoteImage', ...data })
+    });
+    showToast('✓ บันทึก JPG เข้า Google Drive แล้ว');
+  } catch(e) {
+    console.warn('Drive upload failed:', e);
+    showToast('⚠️ บันทึกเข้า Drive ไม่สำเร็จ: ' + e.message, 'error');
+  }
 }
 
 // ─── STAFF SYNC from sheet ───
@@ -2479,21 +2496,8 @@ async function generatePO() {
     try {
       const canvas = await html2canvas(el.firstElementChild, { scale: 2, backgroundColor: '#ffffff', logging: false });
       el.style.display = 'none';
-      // Log this quote
-      logQuote({
-        timestamp: new Date().toISOString(),
-        staff: staffName,
-        quoteNo: poNumber,
-        customer: custName,
-        isVatInvoice: isVatInvoice,
-        companyName: isVatInvoice ? companyName : '',
-        items: lines.map(l => l.name + ' x' + l.qty).join('; '),
-        subtotal: subtotalGoods,
-        grandTotal: grandTotal,
-        paymentMethod: months > 0 ? 'ผ่อน' + months + 'เดือน' : (type === 'transfer' ? 'โอนเงิน' : 'บัตรเครดิต'),
-        logistics: logistics,
-        vatAmt: vatAmt
-      });
+      // Quote image upload below will also append the quote log row with the Drive file URL.
+
       // Export as high-quality JPG instead of PDF.
       // Quality 0.98 keeps visual quality very close to the previous PDF output,
       // while giving customers a LINE-friendly image preview.
@@ -2504,6 +2508,29 @@ async function generatePO() {
       const hh = String(now.getHours()).padStart(2, '0');
       const mi = String(now.getMinutes()).padStart(2, '0');
       const fileName = `QT-${dd}${mm}-${hh}${mi}.jpg`;
+
+      // Save JPG to Google Drive through Apps Script, and append quote log with the Drive file URL.
+      await saveQuoteImageToDrive({
+        fileName: fileName,
+        imageBase64: imgData.split(',')[1],
+        quoteNumber: poNumber,
+        quoteNo: poNumber,
+        salesPerson: staffName,
+        staff: staffName,
+        customerName: custName,
+        customer: custName,
+        customerPhone: custContact,
+        paymentMethod: months > 0 ? 'ผ่อน' + months + 'เดือน' : (type === 'transfer' ? 'โอนเงิน' : 'บัตรเครดิต'),
+        totalAmount: grandTotal,
+        grandTotal: grandTotal,
+        subtotal: subtotalGoods,
+        logistics: logistics,
+        vatAmt: vatAmt,
+        isVatInvoice: isVatInvoice,
+        companyName: isVatInvoice ? companyName : '',
+        productSummary: lines.map(l => l.name + ' x' + l.qty).join('; '),
+        items: lines.map(l => l.name + ' x' + l.qty).join('; ')
+      });
 
       const link = document.createElement('a');
       link.href = imgData;
