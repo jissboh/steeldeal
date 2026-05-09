@@ -1165,15 +1165,39 @@ async function logQuote(data) {
 
 // ─── SAVE JPG TO DRIVE + LOG QUOTE IMAGE ───
 async function saveQuoteImageToDrive(data) {
-  if (!APPS_SCRIPT_URL) return;
+  if (!APPS_SCRIPT_URL) {
+    console.warn('APPS_SCRIPT_URL is missing');
+    showToast('⚠️ ยังไม่ได้ตั้งค่า Apps Script URL', 'error');
+    return;
+  }
+
+  const payload = { action: 'saveQuoteImage', ...data };
+
   try {
+    console.log('SteelDeal Drive upload payload summary:', {
+      action: payload.action,
+      quoteNo: payload.quoteNo || payload.quoteNumber,
+      fileName: payload.fileName,
+      hasImageBase64: !!payload.imageBase64,
+      imageBase64Length: payload.imageBase64 ? payload.imageBase64.length : 0,
+      customer: payload.customer || payload.customerName,
+      staff: payload.staff || payload.salesPerson,
+      grandTotal: payload.grandTotal || payload.totalAmount
+    });
+
+    showToast('⏳ กำลังบันทึก JPG เข้า Google Drive...');
+
+    // no-cors is required for Google Apps Script web apps from GitHub Pages.
+    // The request will appear as opaque in the browser, but Apps Script doPost still runs.
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'saveQuoteImage', ...data })
+      body: JSON.stringify(payload)
     });
-    showToast('✓ บันทึก JPG เข้า Google Drive แล้ว');
+
+    console.log('SteelDeal Drive upload request sent to Apps Script. Check Drive / Quote Log / Debug Log.');
+    showToast('✓ ส่งข้อมูลไป Apps Script แล้ว — ตรวจ Drive / Quote Log');
   } catch(e) {
     console.warn('Drive upload failed:', e);
     showToast('⚠️ บันทึกเข้า Drive ไม่สำเร็จ: ' + e.message, 'error');
@@ -2509,10 +2533,19 @@ async function generatePO() {
       const mi = String(now.getMinutes()).padStart(2, '0');
       const fileName = `QT-${dd}${mm}-${hh}${mi}.jpg`;
 
+      // Download locally first so the sales user always gets the JPG immediately.
+      const link = document.createElement('a');
+      link.href = imgData;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('✓ ดาวน์โหลด JPG สำเร็จ! กำลังส่งเข้า Drive...');
+
       // Save JPG to Google Drive through Apps Script, and append quote log with the Drive file URL.
       await saveQuoteImageToDrive({
         fileName: fileName,
-        imageBase64: imgData.split(',')[1],
+        imageBase64: imgData,
         quoteNumber: poNumber,
         quoteNo: poNumber,
         salesPerson: staffName,
@@ -2531,15 +2564,6 @@ async function generatePO() {
         productSummary: lines.map(l => l.name + ' x' + l.qty).join('; '),
         items: lines.map(l => l.name + ' x' + l.qty).join('; ')
       });
-
-      const link = document.createElement('a');
-      link.href = imgData;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      showToast('✓ ดาวน์โหลด JPG สำเร็จ!');
     } catch(e) { el.style.display='none'; showToast('⚠️ JPG ไม่สำเร็จ: '+e.message,'error'); }
   }, 600);
 }
