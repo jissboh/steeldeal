@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SteelDeal — ระบบขาย THH</title>
-  <!-- PHASE 1 DRIVE UPLOAD V2 - 2026-05-09 -->
+  <!-- PHASE 1 DRIVE UPLOAD V4 - Quote Log Item Payload Fixed - 2026-05-11 -->
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -2411,11 +2411,28 @@ async function generatePO() {
   const calc = buildOrderCalcLines(logistics, includeDeliveryInProductPrice);
   const lines = calc.lines.map(l => {
     const unitForCustomer = includeDeliveryInProductPrice ? l.displayUnitPrice : l.unitPrice;
+    const lineTotal = unitForCustomer * l.qty;
+    const baseSubtotal = l.subtotal;
+    const weightTotal = l.weight || 0;
     return {
-      name: l.name, qty: l.qty, unit: l.unit,
+      // Customer-facing fields used in the JPG table
+      name: l.name,
+      qty: l.qty,
+      unit: l.unit,
       unitPrice: unitForCustomer,
-      subtotal: unitForCustomer * l.qty,
-      deliveryShare: l.deliveryShare
+      subtotal: lineTotal,
+      deliveryShare: l.deliveryShare || 0,
+
+      // Dashboard / Quote Log fields sent to Apps Script
+      productName: l.name,
+      sku: l.product ? (l.product.sku || '') : '',
+      category: l.product ? (l.product.cat || '') : 'สินค้าโป๊ว',
+      quantity: l.qty,
+      price: unitForCustomer,
+      lineTotal: lineTotal,
+      baseSubtotal: baseSubtotal,
+      weightTotal: weightTotal,
+      isCustom: !!l.isCustom
     };
   });
   let subtotalGoods = calc.subtotalGoods;
@@ -2553,16 +2570,30 @@ async function generatePO() {
         customerName: custName,
         customer: custName,
         customerPhone: custContact,
-        paymentMethod: months > 0 ? 'ผ่อน' + months + 'เดือน' : (type === 'transfer' ? 'โอนเงิน' : 'บัตรเครดิต'),
+        customerAddress: custAddress,
+        deliveryDate: deliveryDate,
+        shippingMethod: shippingMethod,
+        destinationProvince: document.getElementById('destination-province')?.selectedOptions?.[0]?.textContent || '',
+        truckType: document.getElementById('truck-type')?.selectedOptions?.[0]?.textContent || '',
+        paymentMethod: payTerms,
+        paymentType: type,
+        paymentMonths: months,
         totalAmount: grandTotal,
         grandTotal: grandTotal,
         subtotal: subtotalGoods,
+        grossSubtotal: grossSub,
         logistics: logistics,
+        vatRate: vatRate,
         vatAmt: vatAmt,
+        discountAmount: salesDisc,
+        discountReason: salesDisc > 0 ? (document.getElementById('discount-reason')?.value || '') : '',
+        includeDeliveryInProductPrice: includeDeliveryInProductPrice,
         isVatInvoice: isVatInvoice,
         companyName: isVatInvoice ? companyName : '',
+        companyAddress: isVatInvoice ? companyAddr : '',
+        companyTaxID: isVatInvoice ? companyTaxID : '',
         productSummary: lines.map(l => l.name + ' x' + l.qty).join('; '),
-        items: lines.map(l => l.name + ' x' + l.qty).join('; ')
+        items: lines
       });
     } catch(e) { el.style.display='none'; showToast('⚠️ JPG ไม่สำเร็จ: '+e.message,'error'); }
   }, 600);
