@@ -222,6 +222,30 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
   margin-top: 4px;
   padding-left: 24px;
 }
+.delivery-absorb-warning {
+  display: none;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 6px;
+  color: #B91C1C;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.delivery-absorb-warning button {
+  margin-top: 6px;
+  margin-right: 6px;
+  padding: 4px 8px;
+  border: 1px solid #FCA5A5;
+  background: #FFFFFF;
+  color: #B91C1C;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 12px;
+}
+.delivery-absorb-warning button:hover { background: #FEE2E2; }
 
 /* ═══════════ ORDER ITEMS ═══════════ */
 .order-row {
@@ -670,7 +694,8 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
               <input type="checkbox" id="include-delivery-toggle" onchange="toggleIncludeDeliveryInProductPrice()">
               <span>รวมค่าส่งในราคาสินค้า / แสดงค่าส่งเป็นฟรี</span>
             </label>
-            <div class="hint">ระบบจะเฉลี่ยค่าส่งเข้าไปในราคาสินค้า โดยอิงน้ำหนักก่อน ถ้าไม่มีน้ำหนักจะเฉลี่ยตามจำนวน</div>
+            <div class="hint">ระบบจะเฉลี่ยค่าส่งเข้าไปในราคาสินค้าเป็นจำนวนเต็ม และส่วนต่างไม่เกิน 100 บาทจะถือเป็นส่วนลดให้ลูกค้า</div>
+            <div id="delivery-absorb-warning" class="delivery-absorb-warning"></div>
           </div>
         </div>
       </div>
@@ -1335,14 +1360,15 @@ function buildCustomerPriceBase(logistics = 0, includeDelivery = false) {
       displayLineTotal: subtotal,
       allocatedDelivery: Number(l.deliveryShare || 0),
       absorbedDelivery: Number(l.absorbedDelivery || 0),
-      processingFeeShare: Number(l.processingFeeShare || 0),
+      leftoverDiscountShare: Number(l.leftoverDiscountShare || 0),
       actualDeliveryTotal: Math.round(Number(logistics) || 0)
     };
   });
   const itemSubtotal = lines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0);
-  const processingFee = includeDelivery ? Math.max(0, Math.round(Number(calc.processingFee || 0))) : 0;
-  const beforePaymentSubtotal = itemSubtotal + (includeDelivery ? processingFee : Math.round(Number(logistics) || 0));
-  return { ...calc, lines, itemSubtotal, processingFee, beforePaymentSubtotal };
+  const absorbedDeliveryTotal = includeDelivery ? Math.round(Number(calc.absorbedDeliveryTotal || 0)) : 0;
+  const leftoverDiscount = includeDelivery ? Math.max(0, Math.round(Number(calc.leftoverDiscount || 0))) : 0;
+  const beforePaymentSubtotal = itemSubtotal + (includeDelivery ? 0 : Math.round(Number(logistics) || 0));
+  return { ...calc, lines, itemSubtotal, absorbedDeliveryTotal, leftoverDiscount, beforePaymentSubtotal };
 }
 
 let isUpdating    = false;
@@ -1351,8 +1377,119 @@ let plShowIncl    = false;
 let sheetProducts = [];   // raw from sheet, for price list tab
 let includeDeliveryInProductPrice = false; // customer-facing presentation mode: fold delivery into product price
 
+function getDeliveryAbsorptionLeftoverForAmount(amount) {
+  const calc = buildOrderCalcLines(Math.max(0, Math.round(Number(amount) || 0)), true);
+  return Math.max(0, Math.round(Number(calc.leftoverDiscount || 0)));
+}
+
+function findCleanDeliveryRecommendations(currentAmount, maxLeftover = 100, searchLimit = 3000) {
+  const current = Math.max(0, Math.round(Number(currentAmount) || 0));
+  let lower = null;
+  let higher = null;
+
+  for (let i = 0; i <= searchLimit; i++) {
+    const candidate = current - i;
+    if (candidate >= 0 && getDeliveryAbsorptionLeftoverForAmount(candidate) <= maxLeftover) {
+      lower = candidate;
+      break;
+    }
+  }
+
+  for (let i = 0; i <= searchLimit; i++) {
+    const candidate = current + i;
+    if (getDeliveryAbsorptionLeftoverForAmount(candidate) <= maxLeftover) {
+      higher = candidate;
+      break;
+    }
+  }
+
+  return { lower, higher };
+}
+
+function showDeliveryAbsorbWarning(currentAmount, leftover) {
+  const box = document.getElementById('delivery-absorb-warning');
+  if (!box) return;
+
+  const rec = findCleanDeliveryRecommendations(currentAmount, 100, 5000);
+  const buttons = [];
+  if (rec.lower != null && rec.lower !== Math.round(Number(currentAmount) || 0)) {
+    buttons.push('<button type="button" onclick="applyRecommendedDelivery(' + rec.lower + ')">ใช้ ฿' + rec.lower.toLocaleString('th-TH') + '</button>');
+  }
+  if (rec.higher != null && rec.higher !== Math.round(Number(currentAmount) || 0) && rec.higher !== rec.lower) {
+    buttons.push('<button type="button" onclick="applyRecommendedDelivery(' + rec.higher + ')">ใช้ ฿' + rec.higher.toLocaleString('th-TH') + '</button>');
+  }
+
+  box.innerHTML =
+    '<strong>ไม่สามารถรวมค่าขนส่งในราคาสินค้าได้</strong><br>' +
+    'เนื่องจากส่วนต่างจากการปัดเศษเกิน 100 บาท (ส่วนต่างปัจจุบัน ฿' + Math.round(leftover).toLocaleString('th-TH') + ')<br>' +
+    'กรุณาปรับค่าขนส่ง หรือแยกค่าขนส่งออกจากรายการสินค้า' +
+    (buttons.length ? '<div style="margin-top:6px;">แนะนำค่าขนส่งที่เหมาะสม:<br>' + buttons.join('') + '</div>' : '');
+  box.style.display = 'block';
+}
+
+function hideDeliveryAbsorbWarning() {
+  const box = document.getElementById('delivery-absorb-warning');
+  if (box) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+  }
+}
+
+function applyRecommendedDelivery(amount) {
+  const rounded = Math.max(0, Math.round(Number(amount) || 0));
+  const finalInput = document.getElementById('logistics-final');
+  const manualInput = document.getElementById('logistics-manual');
+  const costInput = document.getElementById('logistics-cost');
+
+  if (finalInput) finalInput.value = rounded;
+  if (manualInput && manualInput.offsetParent !== null) manualInput.value = rounded;
+  if (costInput) costInput.value = rounded;
+
+  hideDeliveryAbsorbWarning();
+
+  const toggle = document.getElementById('include-delivery-toggle');
+  if (toggle) toggle.checked = true;
+  includeDeliveryInProductPrice = true;
+
+  renderOrderItems();
+  updateSummary();
+  const out = document.getElementById('quote-output');
+  if (out && out.textContent && !out.textContent.includes('กดปุ่ม')) generateQuote();
+}
+
+function validateDeliveryAbsorptionMode(showNotice = true) {
+  const toggle = document.getElementById('include-delivery-toggle');
+  const logistics = Math.round(parseFloat(document.getElementById('logistics-cost')?.value) || 0);
+
+  if (!toggle || !toggle.checked || logistics <= 0) {
+    hideDeliveryAbsorbWarning();
+    return true;
+  }
+
+  const leftover = getDeliveryAbsorptionLeftoverForAmount(logistics);
+
+  if (leftover > 100) {
+    toggle.checked = false;
+    includeDeliveryInProductPrice = false;
+    if (showNotice) {
+      showDeliveryAbsorbWarning(logistics, leftover);
+      showToast('⚠️ ไม่สามารถรวมค่าขนส่งได้ กรุณาปรับค่าขนส่ง', 'error');
+    }
+    return false;
+  }
+
+  hideDeliveryAbsorbWarning();
+  return true;
+}
+
 function toggleIncludeDeliveryInProductPrice() {
-  includeDeliveryInProductPrice = document.getElementById('include-delivery-toggle')?.checked || false;
+  const toggle = document.getElementById('include-delivery-toggle');
+  includeDeliveryInProductPrice = toggle?.checked || false;
+
+  if (includeDeliveryInProductPrice && !validateDeliveryAbsorptionMode(true)) {
+    includeDeliveryInProductPrice = false;
+  }
+
   renderOrderItems();
   const out = document.getElementById('quote-output');
   if (out && out.textContent && !out.textContent.includes('กดปุ่ม')) generateQuote();
@@ -1388,7 +1525,7 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
         baseLineTotal: baseDisplayUnitPrice * qty,
         deliveryShare: 0,
         absorbedDelivery: 0,
-        processingFeeShare: 0,
+        leftoverDiscountShare: 0,
         displayUnitPrice: baseDisplayUnitPrice,
         displaySubtotal: baseDisplayUnitPrice * qty
       };
@@ -1410,7 +1547,7 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
         baseLineTotal: baseDisplayUnitPrice * qty,
         deliveryShare: 0,
         absorbedDelivery: 0,
-        processingFeeShare: 0,
+        leftoverDiscountShare: 0,
         displayUnitPrice: baseDisplayUnitPrice,
         displaySubtotal: baseDisplayUnitPrice * qty
       };
@@ -1418,11 +1555,12 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
     lines.push(line);
   }
 
-  let processingFee = 0;
+  let absorbedDeliveryTotal = 0;
+  let leftoverDiscount = 0;
+
   if (includeDelivery && logistics > 0 && lines.length) {
     const logisticsRounded = Math.round(Number(logistics) || 0);
     let remainingShare = logisticsRounded;
-    let absorbedTotal = 0;
 
     lines.forEach((line, idx) => {
       let share;
@@ -1435,29 +1573,30 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
       } else {
         share = 0;
       }
+
       remainingShare -= share;
       share = Math.max(0, share);
       line.deliveryShare = share;
 
       // Hybrid delivery absorption:
-      // add clean whole-baht increments into unit price without exceeding actual delivery share.
-      // any remaining amount becomes ค่าดำเนินการ.
+      // absorb as much delivery as possible into clean whole-baht unit prices.
+      // any small leftover (<= 100) becomes hidden customer discount, not a fee line.
       const qty = Number(line.qty) || 1;
       const unitIncrement = Math.floor(share / qty);
       const absorbed = unitIncrement * qty;
       const remainder = Math.max(0, share - absorbed);
 
       line.absorbedDelivery = absorbed;
-      line.processingFeeShare = remainder;
+      line.leftoverDiscountShare = remainder;
       line.displayUnitPrice = Number(line.baseDisplayUnitPrice || Math.round(line.unitPrice || 0)) + unitIncrement;
       line.displaySubtotal = line.displayUnitPrice * qty;
-      absorbedTotal += absorbed;
+      absorbedDeliveryTotal += absorbed;
     });
 
-    processingFee = Math.max(0, logisticsRounded - absorbedTotal);
+    leftoverDiscount = Math.max(0, logisticsRounded - absorbedDeliveryTotal);
   }
 
-  return { lines, subtotalGoods, totalWeight, totalQty, processingFee };
+  return { lines, subtotalGoods, totalWeight, totalQty, absorbedDeliveryTotal, leftoverDiscount };
 }
 
 function escapeHTML(s) {
@@ -1511,9 +1650,9 @@ function updateRowTotal(id) {
 
   const bd = document.getElementById('delivery-breakdown-' + id);
   if (bd) {
-    if (includeDeliveryInProductPrice && logistics > 0 && line && line.deliveryShare > 0) {
+    if (includeDeliveryInProductPrice && logistics > 0 && line && line.absorbedDelivery > 0) {
       const unit = item.customProduct ? (item.customUnit || 'เส้น') : ((products.find(x => x.sku === item.sku)?.unit) || 'เส้น');
-      const deliveryPerUnit = qty ? Math.ceil(line.deliveryShare / qty) : 0;
+      const deliveryPerUnit = qty ? Math.floor(line.absorbedDelivery / qty) : 0;
       bd.style.color = 'var(--green)';
       bd.innerHTML = 'ค่าส่งเฉลี่ย +฿' + deliveryPerUnit.toLocaleString() + '/' + unit + '<br>' +
                      'ราคาลูกค้า ฿' + line.displayUnitPrice.toLocaleString() + '/' + unit;
@@ -1542,6 +1681,7 @@ function finishCustomPriceEdit(id) {
 function overrideLogisticsFinal(value) {
   const v = Math.max(0, parseFloat(value) || 0);
   document.getElementById('logistics-cost').value = v;
+  validateDeliveryAbsorptionMode(true);
   renderOrderItems();
 }
 
@@ -1994,8 +2134,8 @@ function renderOrderItems() {
     const unitPrice = isCustomRow ? getItemPrice(item, null) : (p ? getItemPrice(item, p) : 0);
     const calcLine = lineMap.get(item.id);
     const displayUnitPrice = calcLine ? calcLine.displayUnitPrice : unitPrice;
-    const deliveryShare = calcLine ? calcLine.deliveryShare : 0;
-    const deliveryPerUnit = (deliveryShare && item.qty) ? Math.ceil(deliveryShare / (parseFloat(item.qty) || 1)) : 0;
+    const deliveryShare = calcLine ? calcLine.absorbedDelivery : 0;
+    const deliveryPerUnit = (deliveryShare && item.qty) ? Math.floor(deliveryShare / (parseFloat(item.qty) || 1)) : 0;
     const displaySubtotal = calcLine ? calcLine.displaySubtotal : (unitPrice * (parseFloat(item.qty) || 1));
     const isCustomPrice = p && item.customPrice != null && parseFloat(item.customPrice) > 0 && parseFloat(item.customPrice) !== p.price;
     const qty = parseFloat(item.qty) || 1;
@@ -2143,14 +2283,13 @@ function updateSummary() {
         '<div class="summary-line internal-line"><span class="label">' + l.name + ' × ' + l.qty + '</span>' +
         '<div style="text-align:right;"><div class="value">฿' + l.subtotal.toLocaleString() + '</div>' +
         '<div style="font-size:11px;color:var(--muted);">฿' + l.unitPrice.toLocaleString() + ' / ' + l.unit + '</div>' +
-        (includeDeliveryInProductPrice && l.deliveryShare > 0 ? '<div style="font-size:11px;color:var(--green);">รวมค่าส่งในสินค้า +฿' + l.deliveryShare.toLocaleString() + '</div>' : '') +
+        (includeDeliveryInProductPrice && l.absorbedDelivery > 0 ? '<div style="font-size:11px;color:var(--green);">รวมค่าส่งในสินค้า +฿' + l.absorbedDelivery.toLocaleString() + '</div>' : '') +
         (l.weight ? '<div style="font-size:11px;color:var(--int);">' + l.weight.toFixed(2) + ' kg' + (l.pricekg?' · ฿'+l.pricekg+'/kg':'') + '</div>' : '') +
         '</div></div>'
       ).join('') +
       (totalWeight>0 ? '<div class="summary-line internal-line"><span class="label">🔒 น้ำหนักรวม</span><span class="value">' + totalWeight.toFixed(2) + ' kg</span></div>' : '') +
       (!includeDeliveryInProductPrice && logistics>0 ? '<div class="summary-line"><span class="label">🚚 ค่าขนส่ง</span><span class="value">฿' + logistics.toLocaleString() + '</span></div>' : '') +
       (includeDeliveryInProductPrice && logistics>0 ? '<div class="summary-line"><span class="label">🚚 ค่าขนส่ง</span><span class="value" style="color:var(--green);">ฟรี</span></div>' : '') +
-      (includeDeliveryInProductPrice && base.processingFee > 0 ? '<div class="summary-line"><span class="label">⚙️ ค่าดำเนินการ</span><span class="value">฿' + base.processingFee.toLocaleString() + '</span></div>' : '') +
       (multiplier !== 1 ? '<div class="summary-line"><span class="label">💳 ' + getPaymentLabel(selectedPayment) + '</span><span class="value">฿' + paymentSubtotalBeforeDiscount.toLocaleString() + '</span></div>' : '') +
       (salesDisc>0 ? '<div class="summary-line"><span class="label">✂️ ส่วนลดพิเศษ</span><span class="value" style="color:var(--green);">-฿' + salesDisc.toLocaleString() + '</span></div>' : '') +
       (grandVAT>0 ? '<div class="summary-line"><span class="label">🧾 VAT ' + vatRate + '%</span><span class="value">฿' + grandVAT.toLocaleString() + '</span></div>' : '');
@@ -2222,7 +2361,6 @@ function generateQuote() {
   const base = buildCustomerPriceBase(logistics, includeDeliveryInProductPrice);
   const displayLines = base.lines;
   const itemSubtotal = base.itemSubtotal;
-  const processingFee = base.processingFee || 0;
   const beforePaymentSubtotal = base.beforePaymentSubtotal;
   if (!displayLines.length) { document.getElementById('quote-output').textContent = '⚠️ กรุณาเพิ่มสินค้าก่อน'; return; }
 
@@ -2257,10 +2395,9 @@ function generateQuote() {
   const logLine = logistics > 0
     ? (includeDeliveryInProductPrice ? '  🚚 ค่าขนส่ง: ฟรี\n' : '  🚚 ค่าขนส่ง: ฿' + logistics.toLocaleString() + '\n')
     : '';
-  const processingFeeLine = includeDeliveryInProductPrice && base.processingFee > 0 ? '  ⚙️ ค่าดำเนินการ: ฿' + base.processingFee.toLocaleString() + '\n' : '';
   const paymentLine = multiplier !== 1 ? '  💳 ' + getPaymentLabel(selectedPayment) + ': ฿' + paymentSubtotalBeforeDiscount.toLocaleString() + '\n' : '';
   const vatLine = vat > 0 ? '  🧾 VAT ' + vatRate + '%:  ฿' + vat.toLocaleString() + '\n' : '';
-  const quote = '━━━━━━━━━━━━━━━━━━━━━━━━\n🔩 SteelDeal ใบเสนอราคา\n━━━━━━━━━━━━━━━━━━━━━━━━\n📅 วันที่: ' + dateStr + '\n👤 ลูกค้า: ' + custName + '\n' + (custCtx?'📞 '+custCtx+'\n':'') + (custAddr?'📍 '+custAddr+'\n':'') + '\n📦 รายการสินค้า:\n' + lines.join('\n') + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n' + itemPriceLabel + processingFeeLine + logLine + paymentLine + salesDiscLine + vatLine + '  ──────────────────────\n  💰 ยอดรวมสุทธิ: ฿' + grand.toLocaleString() + '\n\n' + payLine + '\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n✅ บริการของเรา:\n  • ผ่อน 0% สูงสุด 10 เดือน\n  • ส่งถึงที่ครบวงจร\n  • EEC · Bang Phli\n\n📞 LINE: @steeldeal' + (notes?'\n\n📝 หมายเหตุ: '+notes:'');
+  const quote = '━━━━━━━━━━━━━━━━━━━━━━━━\n🔩 SteelDeal ใบเสนอราคา\n━━━━━━━━━━━━━━━━━━━━━━━━\n📅 วันที่: ' + dateStr + '\n👤 ลูกค้า: ' + custName + '\n' + (custCtx?'📞 '+custCtx+'\n':'') + (custAddr?'📍 '+custAddr+'\n':'') + '\n📦 รายการสินค้า:\n' + lines.join('\n') + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n' + itemPriceLabel + logLine + paymentLine + salesDiscLine + vatLine + '  ──────────────────────\n  💰 ยอดรวมสุทธิ: ฿' + grand.toLocaleString() + '\n\n' + payLine + '\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n✅ บริการของเรา:\n  • ผ่อน 0% สูงสุด 10 เดือน\n  • ส่งถึงที่ครบวงจร\n  • EEC · Bang Phli\n\n📞 LINE: @steeldeal' + (notes?'\n\n📝 หมายเหตุ: '+notes:'');
   document.getElementById('quote-output').textContent = quote;
 }
 function copyQuote() {
@@ -2317,7 +2454,7 @@ function calculateLogistics() {
     document.getElementById('logistics-breakdown').style.display = 'none';
     document.getElementById('manual-logistics').style.display = 'block';
     const manual = parseFloat(document.getElementById('logistics-manual').value) || 0;
-    costEl.value = manual + (helper?200:0); renderOrderItems(); return;
+    costEl.value = manual + (helper?200:0); validateDeliveryAbsorptionMode(true); renderOrderItems(); return;
   }
   document.getElementById('manual-logistics').style.display = 'none';
   document.getElementById('logistics-breakdown').style.display = 'block';
@@ -2341,6 +2478,7 @@ function calculateLogistics() {
   const finalInput = document.getElementById('logistics-final');
   if (finalInput) finalInput.value = final;
   costEl.value = final;
+  validateDeliveryAbsorptionMode(true);
   renderOrderItems();
 }
 function calculateLogisticsDiscount(orderTotal) {
@@ -2362,6 +2500,7 @@ function updateManualLogistics() {
   document.getElementById('logistics-cost').value = final;
   const finalInput = document.getElementById('logistics-final');
   if (finalInput) finalInput.value = final;
+  validateDeliveryAbsorptionMode(true);
   renderOrderItems();
 }
 function togglePricingTable() {
@@ -2587,7 +2726,6 @@ async function generatePO() {
   const base = buildCustomerPriceBase(logistics, includeDeliveryInProductPrice);
   const sourceLines = base.lines;
   const itemSubtotal = base.itemSubtotal;
-  const processingFee = base.processingFee || 0;
   const beforePaymentSubtotal = base.beforePaymentSubtotal;
 
   if (!sourceLines.length) { showToast('⚠️ กรุณาเพิ่มสินค้าก่อน','error'); return; }
@@ -2635,7 +2773,6 @@ async function generatePO() {
   const compareRow = (showPaymentDiscount && comparisonDiscount > 0) ?
     '<tr><td style="padding:4px 12px;text-align:right;">ราคาก่อนส่วนลด ('+compareOpt.label+')</td><td style="padding:4px 12px;text-align:right;">'+compareBeforeDiscount.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
   const cashSubtotalRow = '<tr><td style="padding:4px 12px;text-align:right;">ราคาสินค้า</td><td style="padding:4px 12px;text-align:right;">'+itemSubtotal.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>';
-  const processingFeeRow = (includeDeliveryInProductPrice && processingFee > 0) ? '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าดำเนินการ</td><td style="padding:4px 12px;text-align:right;">'+processingFee.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
   const paymentSubtotalRow = multiplier !== 1 ? '<tr><td style="padding:4px 12px;text-align:right;">'+getPaymentLabel(selectedPayment)+'</td><td style="padding:4px 12px;text-align:right;">'+selectedBeforeDiscount.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
   const logRow = logistics>0 ? (includeDeliveryInProductPrice ? '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าขนส่ง</td><td style="padding:4px 12px;text-align:right;color:#16A34A;font-weight:700;">ฟรี</td></tr>' : '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าขนส่ง</td><td style="padding:4px 12px;text-align:right;">'+logistics.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>') : '';
   const actualBeforeVat = paymentSubtotal;
@@ -2685,7 +2822,7 @@ async function generatePO() {
       '<tbody>'+itemRows+'</tbody></table>' +
     '<div style="display:flex;justify-content:flex-end;margin-bottom:24px;">' +
       '<table style="font-size:12px;width:280px;">' +
-        cashSubtotalRow + processingFeeRow + logRow + compareRow + discountRow +
+        cashSubtotalRow + logRow + compareRow + discountRow +
         '<tr><td style="padding:4px 12px;text-align:right;">รวมก่อน VAT</td><td style="padding:4px 12px;text-align:right;font-weight:600;">'+actualBeforeVat.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' +
         vatRow +
         '<tr style="border-top:2px solid #000;font-weight:700;font-size:14px;"><td style="padding:8px 12px;text-align:right;">ยอดรวมสุทธิ</td>' +
@@ -2753,7 +2890,7 @@ async function generatePO() {
         grandTotal: grandTotal,
         subtotal: itemSubtotal,
         grossSubtotal: beforePaymentSubtotal,
-        processingFee: processingFee,
+        leftoverDiscount: base.leftoverDiscount || 0,
         absorbedDelivery: lines.reduce((sum, l) => sum + (Number(l.absorbedDelivery) || 0), 0),
         actualDeliveryTotal: logistics,
         paymentMultiplier: multiplier,
@@ -2781,7 +2918,7 @@ async function generatePO() {
           displayLineTotal: l.subtotal,
           allocatedDelivery: l.deliveryShare || 0,
           absorbedDelivery: l.absorbedDelivery || 0,
-          processingFeeShare: l.processingFeeShare || 0,
+          leftoverDiscountShare: l.leftoverDiscountShare || 0,
           actualDeliveryTotal: logistics
         }))
       });
