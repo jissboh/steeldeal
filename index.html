@@ -862,6 +862,28 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
             <button class="btn btn-primary" onclick="generatePO()">🖼️ JPG ใบเสนอราคา</button>
             <button class="btn btn-ghost" onclick="copyCustomerInfoTemplate()">📲 ถามข้อมูลลูกค้า</button>
           </div>
+          <div style="margin-bottom:12px;padding:10px 12px;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:600;color:var(--text);margin-bottom:8px;cursor:pointer;">
+              <input type="checkbox" id="po-show-payment-discount" checked style="width:16px;height:16px;">
+              แสดงบรรทัดส่วนลดเทียบกับราคาผ่อน
+            </label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <label style="margin:0;white-space:nowrap;font-size:12px;">เทียบกับ:</label>
+              <select id="po-discount-compare-months" style="max-width:170px;font-size:13px;padding:6px 9px;">
+                <option value="10" selected>ผ่อน 10 เดือน</option>
+                <option value="9">ผ่อน 9 เดือน</option>
+                <option value="8">ผ่อน 8 เดือน</option>
+                <option value="7">ผ่อน 7 เดือน</option>
+                <option value="6">ผ่อน 6 เดือน</option>
+                <option value="5">ผ่อน 5 เดือน</option>
+                <option value="4">ผ่อน 4 เดือน</option>
+                <option value="3">ผ่อน 3 เดือน</option>
+                <option value="2">ผ่อน 2 เดือน</option>
+                <option value="card">บัตรเครดิตเงินสด</option>
+              </select>
+              <span style="font-size:11px;color:var(--muted);">ใช้เฉพาะ JPG ใบเสนอราคา</span>
+            </div>
+          </div>
           <div id="quote-output">กดปุ่ม "สร้างใบเสนอราคา" เพื่อสร้างข้อความส่งให้ลูกค้า...</div>
         </div>
       </div>
@@ -2394,6 +2416,45 @@ dz?.addEventListener('drop', e => {
 // ════════════════════════════════════════
 // JPG QUOTATION GENERATION
 // ════════════════════════════════════════
+function getPOCompareOption() {
+  const raw = document.getElementById('po-discount-compare-months')?.value || '10';
+  const map = {
+    '10': { label: 'ผ่อน 10 เดือน', fee: 13.21, type: 'card', months: 10 },
+    '9':  { label: 'ผ่อน 9 เดือน',  fee: 12.21, type: 'card', months: 9  },
+    '8':  { label: 'ผ่อน 8 เดือน',  fee: 11.21, type: 'card', months: 8  },
+    '7':  { label: 'ผ่อน 7 เดือน',  fee: 10.21, type: 'card', months: 7  },
+    '6':  { label: 'ผ่อน 6 เดือน',  fee: 9.21,  type: 'card', months: 6  },
+    '5':  { label: 'ผ่อน 5 เดือน',  fee: 8.21,  type: 'card', months: 5  },
+    '4':  { label: 'ผ่อน 4 เดือน',  fee: 7.21,  type: 'card', months: 4  },
+    '3':  { label: 'ผ่อน 3 เดือน',  fee: 6.21,  type: 'card', months: 3  },
+    '2':  { label: 'ผ่อน 2 เดือน',  fee: 5.21,  type: 'card', months: 2  },
+    'card': { label: 'บัตรเครดิตเงินสด', fee: 3.21, type: 'card', months: 0 }
+  };
+  return map[raw] || map['10'];
+}
+
+function distributeDisplayAmounts(lines, targetTotal) {
+  const totalBase = lines.reduce((sum, l) => sum + (Number(l.baseCustomerSubtotal) || 0), 0);
+  let remaining = Math.round(targetTotal || 0);
+  return lines.map((line, idx) => {
+    let amount;
+    if (idx === lines.length - 1) {
+      amount = remaining;
+    } else if (totalBase > 0) {
+      amount = Math.round((targetTotal || 0) * ((Number(line.baseCustomerSubtotal) || 0) / totalBase));
+      remaining -= amount;
+    } else {
+      amount = 0;
+    }
+    const qty = Number(line.qty) || 1;
+    return {
+      ...line,
+      unitPrice: Math.round(amount / qty),
+      subtotal: amount
+    };
+  });
+}
+
 async function generatePO() {
   const custName    = document.getElementById('cust-name').value || 'ลูกค้า';
   const custContact = document.getElementById('cust-contact').value || '-';
@@ -2409,18 +2470,19 @@ async function generatePO() {
   const vatRate     = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
   includeDeliveryInProductPrice = document.getElementById('include-delivery-toggle')?.checked || false;
   const calc = buildOrderCalcLines(logistics, includeDeliveryInProductPrice);
-  const lines = calc.lines.map(l => {
-    const unitForCustomer = includeDeliveryInProductPrice ? l.displayUnitPrice : l.unitPrice;
-    const lineTotal = unitForCustomer * l.qty;
-    const baseSubtotal = l.subtotal;
-    const weightTotal = l.weight || 0;
+  let subtotalGoods = calc.subtotalGoods;
+
+  const sourceLines = calc.lines.map(l => {
+    const baseCustomerSubtotal = includeDeliveryInProductPrice ? (l.subtotal + (l.deliveryShare || 0)) : l.subtotal;
+    const baseUnitPrice = l.qty ? Math.round(baseCustomerSubtotal / l.qty) : l.unitPrice;
     return {
-      // Customer-facing fields used in the JPG table
+      // Customer-facing base before payment presentation adjustments
       name: l.name,
       qty: l.qty,
       unit: l.unit,
-      unitPrice: unitForCustomer,
-      subtotal: lineTotal,
+      unitPrice: baseUnitPrice,
+      subtotal: Math.round(baseCustomerSubtotal),
+      baseCustomerSubtotal: Math.round(baseCustomerSubtotal),
       deliveryShare: l.deliveryShare || 0,
 
       // Dashboard / Quote Log fields sent to Apps Script
@@ -2428,28 +2490,44 @@ async function generatePO() {
       sku: l.product ? (l.product.sku || '') : '',
       category: l.product ? (l.product.cat || '') : 'สินค้าโป๊ว',
       quantity: l.qty,
-      price: unitForCustomer,
-      lineTotal: lineTotal,
-      baseSubtotal: baseSubtotal,
-      weightTotal: weightTotal,
+      price: baseUnitPrice,
+      lineTotal: Math.round(baseCustomerSubtotal),
+      baseSubtotal: l.subtotal,
+      weightTotal: l.weight || 0,
       isCustom: !!l.isCustom
     };
   });
-  let subtotalGoods = calc.subtotalGoods;
-  if (!lines.length) { showToast('⚠️ กรุณาเพิ่มสินค้าก่อน','error'); return; }
+
+  if (!sourceLines.length) { showToast('⚠️ กรุณาเพิ่มสินค้าก่อน','error'); return; }
+
   const fee   = selectedPayment.fee != null ? selectedPayment.fee : 0;
   const type  = selectedPayment.type || 'transfer';
   const months= selectedPayment.months || 0;
-  let grossSub;
-  if (type === 'transfer') { grossSub = subtotalGoods; } // Cont price, no adjustment
-  else { grossSub = Math.ceil(subtotalGoods / (1 - fee/100)); } // gross-up
+  const selectedGrossBeforeDiscount = type === 'transfer' ? subtotalGoods : Math.ceil(subtotalGoods / (1 - fee/100));
   const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
-  grossSub = Math.max(0, grossSub - salesDisc);
-  const vatAmt  = Math.ceil((grossSub + logistics) * vatRate / 100);
-  const grandTotal = grossSub + logistics + vatAmt;
-  const anchor10 = Math.ceil(subtotalGoods / (1 - 13.21/100));
-  const savingsVsAnchor = anchor10 - subtotalGoods;
-  const savePct = (savingsVsAnchor / anchor10 * 100).toFixed(1);
+  const grossSub = Math.max(0, selectedGrossBeforeDiscount - salesDisc);
+
+  const showPaymentDiscount = document.getElementById('po-show-payment-discount')?.checked !== false;
+  const compareOpt = getPOCompareOption();
+  const compareSub = compareOpt.type === 'transfer' ? subtotalGoods : Math.ceil(subtotalGoods / (1 - compareOpt.fee/100));
+
+  // IMPORTANT: the item table and the summary must use the same base.
+  // If discount comparison is shown, item rows display the comparison price first,
+  // then the discount row brings it back to the actual selected payment price.
+  // If discount comparison is hidden, item rows display the actual selected payment price directly.
+  const actualBeforeVat = grossSub + logistics;
+  const actualLineNet = grossSub + (includeDeliveryInProductPrice ? logistics : 0);
+  const comparisonLineGross = compareSub + (includeDeliveryInProductPrice ? logistics : 0);
+  const displayLineTarget = showPaymentDiscount ? comparisonLineGross : actualLineNet;
+
+  const lines = distributeDisplayAmounts(sourceLines, displayLineTarget);
+  const renderedLineTotal = lines.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
+  const comparisonDiscount = showPaymentDiscount ? Math.max(0, renderedLineTotal - actualLineNet) : 0;
+  const beforeVatFromVisibleRows = renderedLineTotal - comparisonDiscount + (includeDeliveryInProductPrice ? 0 : logistics);
+  const discountPct = renderedLineTotal > 0 ? (comparisonDiscount / renderedLineTotal * 100).toFixed(1) : '0.0';
+
+  const vatAmt  = Math.ceil(beforeVatFromVisibleRows * vatRate / 100);
+  const grandTotal = beforeVatFromVisibleRows + vatAmt;
   const now = new Date();
   const dateStr = now.getDate().toString().padStart(2,'0') + '/' + (now.getMonth()+1).toString().padStart(2,'0') + '/' + (now.getFullYear()+543);
   const poNumber = 'QI' + now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0') + now.getHours().toString().padStart(2,'0') + now.getMinutes().toString().padStart(2,'0');
@@ -2464,7 +2542,10 @@ async function generatePO() {
     '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.unitPrice.toLocaleString('th-TH')+'</td>' +
     '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.subtotal.toLocaleString('th-TH')+'</td></tr>'
   ).join('');
-  const discountRow = salesDisc>0 ? '<tr><td style="padding:4px 12px;text-align:right;color:#16A34A;" colspan="1">ส่วนลดพิเศษ</td><td style="padding:4px 12px;text-align:right;color:#16A34A;">-'+salesDisc.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
+  const discountRow = (showPaymentDiscount && comparisonDiscount > 0) ?
+    '<tr><td style="padding:4px 12px;text-align:right;color:#16A34A;" colspan="1">ส่วนลด ' + (type === 'transfer' ? 'โอนเงิน' : payTerms) + ' ('+discountPct+'%)</td><td style="padding:4px 12px;text-align:right;color:#16A34A;">-'+comparisonDiscount.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
+  const compareRow = (showPaymentDiscount && comparisonDiscount > 0) ?
+    '<tr><td style="padding:4px 12px;text-align:right;">ราคาสินค้า ('+compareOpt.label+')</td><td style="padding:4px 12px;text-align:right;">'+displayLineTarget.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
   const logRow = logistics>0 ? (includeDeliveryInProductPrice ? '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าขนส่ง</td><td style="padding:4px 12px;text-align:right;color:#16A34A;font-weight:700;">ฟรี</td></tr>' : '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าขนส่ง</td><td style="padding:4px 12px;text-align:right;">'+logistics.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>') : '';
   const vatRow = vatAmt>0 ? '<tr><td style="padding:4px 12px;text-align:right;">ภาษีมูลค่าเพิ่ม 7%</td><td style="padding:4px 12px;text-align:right;">'+vatAmt.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
   const el = document.getElementById('po-hidden');
@@ -2512,10 +2593,8 @@ async function generatePO() {
       '<tbody>'+itemRows+'</tbody></table>' +
     '<div style="display:flex;justify-content:flex-end;margin-bottom:24px;">' +
       '<table style="font-size:12px;width:280px;">' +
-        (type === 'transfer' && savingsVsAnchor > 0 ?
-          '<tr><td style="padding:4px 12px;text-align:right;">ราคาสินค้า (ผ่อน 10 เดือน)</td><td style="padding:4px 12px;text-align:right;">'+anchor10.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' +
-          '<tr><td style="padding:4px 12px;text-align:right;color:#16A34A;">ส่วนลด โอนเงิน ('+savePct+'%)</td><td style="padding:4px 12px;text-align:right;color:#16A34A;">-'+savingsVsAnchor.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '') +
-        '<tr><td style="padding:4px 12px;text-align:right;">รวมก่อน VAT</td><td style="padding:4px 12px;text-align:right;font-weight:600;">'+grossSub.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' +
+        compareRow + discountRow +
+        '<tr><td style="padding:4px 12px;text-align:right;">รวมก่อน VAT</td><td style="padding:4px 12px;text-align:right;font-weight:600;">'+actualBeforeVat.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' +
         logRow + vatRow +
         '<tr style="border-top:2px solid #000;font-weight:700;font-size:14px;"><td style="padding:8px 12px;text-align:right;">ยอดรวมสุทธิ</td>' +
         '<td style="padding:8px 12px;text-align:right;color:#DC2626;">'+grandTotal.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' +
@@ -2580,7 +2659,7 @@ async function generatePO() {
         paymentMonths: months,
         totalAmount: grandTotal,
         grandTotal: grandTotal,
-        subtotal: subtotalGoods,
+        subtotal: beforeVatFromVisibleRows,
         grossSubtotal: grossSub,
         logistics: logistics,
         vatRate: vatRate,
@@ -2592,8 +2671,12 @@ async function generatePO() {
         companyName: isVatInvoice ? companyName : '',
         companyAddress: isVatInvoice ? companyAddr : '',
         companyTaxID: isVatInvoice ? companyTaxID : '',
-        productSummary: lines.map(l => l.name + ' x' + l.qty).join('; '),
-        items: lines
+        productSummary: sourceLines.map(l => l.name + ' x' + l.qty).join('; '),
+        items: sourceLines.map(l => ({
+          ...l,
+          price: l.unitPrice,
+          lineTotal: l.subtotal
+        }))
       });
     } catch(e) { el.style.display='none'; showToast('⚠️ JPG ไม่สำเร็จ: '+e.message,'error'); }
   }, 600);
