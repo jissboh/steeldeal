@@ -1382,48 +1382,59 @@ function getDeliveryAbsorptionLeftoverForAmount(amount) {
   return Math.max(0, Math.round(Number(calc.leftoverDiscount || 0)));
 }
 
-function findCleanDeliveryRecommendations(currentAmount, maxLeftover = 100, searchLimit = 3000) {
+function findCleanDeliveryRecommendations(currentAmount, maxLeftover = 100, searchLimit = 50000) {
+  // The old version only searched +/- 5,000 from the current input.
+  // For large steel orders, the next clean absorbable value can be much farther away,
+  // so the warning box had no recommendation buttons even though valid values existed.
   const current = Math.max(0, Math.round(Number(currentAmount) || 0));
+  const upperLimit = Math.max(current + searchLimit, 60000);
   let lower = null;
   let higher = null;
+  let nearest = null;
+  let nearestDistance = Infinity;
 
-  for (let i = 0; i <= searchLimit; i++) {
-    const candidate = current - i;
-    if (candidate >= 0 && getDeliveryAbsorptionLeftoverForAmount(candidate) <= maxLeftover) {
-      lower = candidate;
-      break;
+  for (let candidate = 0; candidate <= upperLimit; candidate++) {
+    const lf = getDeliveryAbsorptionLeftoverForAmount(candidate);
+    if (lf <= maxLeftover) {
+      if (candidate <= current) lower = candidate;
+      if (candidate >= current && higher === null) higher = candidate;
+      const dist = Math.abs(candidate - current);
+      if (dist < nearestDistance) {
+        nearest = candidate;
+        nearestDistance = dist;
+      }
     }
   }
 
-  for (let i = 0; i <= searchLimit; i++) {
-    const candidate = current + i;
-    if (getDeliveryAbsorptionLeftoverForAmount(candidate) <= maxLeftover) {
-      higher = candidate;
-      break;
-    }
-  }
-
-  return { lower, higher };
+  return { lower, higher, nearest };
 }
 
 function showDeliveryAbsorbWarning(currentAmount, leftover) {
   const box = document.getElementById('delivery-absorb-warning');
   if (!box) return;
 
-  const rec = findCleanDeliveryRecommendations(currentAmount, 100, 5000);
+  const current = Math.round(Number(currentAmount) || 0);
+  const rec = findCleanDeliveryRecommendations(current, 100, 50000);
   const buttons = [];
-  if (rec.lower != null && rec.lower !== Math.round(Number(currentAmount) || 0)) {
-    buttons.push('<button type="button" onclick="applyRecommendedDelivery(' + rec.lower + ')">ใช้ ฿' + rec.lower.toLocaleString('th-TH') + '</button>');
+  const seen = new Set();
+
+  function addSuggestion(label, amount) {
+    if (amount == null || amount < 0 || amount === current || seen.has(amount)) return;
+    seen.add(amount);
+    buttons.push('<button type="button" onclick="applyRecommendedDelivery(' + amount + ')">' + label + ' ฿' + amount.toLocaleString('th-TH') + '</button>');
   }
-  if (rec.higher != null && rec.higher !== Math.round(Number(currentAmount) || 0) && rec.higher !== rec.lower) {
-    buttons.push('<button type="button" onclick="applyRecommendedDelivery(' + rec.higher + ')">ใช้ ฿' + rec.higher.toLocaleString('th-TH') + '</button>');
-  }
+
+  addSuggestion('แนะนำใกล้สุด:', rec.nearest);
+  addSuggestion('ลดลงเป็น:', rec.lower);
+  addSuggestion('เพิ่มเป็น:', rec.higher);
 
   box.innerHTML =
     '<strong>ไม่สามารถรวมค่าขนส่งในราคาสินค้าได้</strong><br>' +
     'เนื่องจากส่วนต่างจากการปัดเศษเกิน 100 บาท (ส่วนต่างปัจจุบัน ฿' + Math.round(leftover).toLocaleString('th-TH') + ')<br>' +
     'กรุณาปรับค่าขนส่ง หรือแยกค่าขนส่งออกจากรายการสินค้า' +
-    (buttons.length ? '<div style="margin-top:6px;">แนะนำค่าขนส่งที่เหมาะสม:<br>' + buttons.join('') + '</div>' : '');
+    (buttons.length
+      ? '<div style="margin-top:8px;">แนะนำค่าขนส่งที่ระบบรับได้:<br>' + buttons.join('') + '</div>'
+      : '<div style="margin-top:8px;color:#92400E;">ยังไม่พบค่าขนส่งที่ลงตัวในช่วงที่ระบบตรวจสอบ — แนะนำให้แยกค่าขนส่งออกจากรายการสินค้า</div>');
   box.style.display = 'block';
 }
 
