@@ -1383,27 +1383,42 @@ function getDeliveryAbsorptionLeftoverForAmount(amount) {
 }
 
 function findCleanDeliveryRecommendations(currentAmount, maxLeftover = 100, searchLimit = 50000) {
-  // The old version only searched +/- 5,000 from the current input.
-  // For large steel orders, the next clean absorbable value can be much farther away,
-  // so the warning box had no recommendation buttons even though valid values existed.
+  // Find useful delivery recommendations around the user's current input.
+  // Important: do NOT scan from 0, otherwise the system may recommend silly values
+  // such as ฿100 just because they technically pass the rounding test.
   const current = Math.max(0, Math.round(Number(currentAmount) || 0));
-  const upperLimit = Math.max(current + searchLimit, 60000);
+
+  // Business guardrail: recommendations should stay near the user's intended freight level.
+  // Example: if user typed ฿16,000, don't suggest ฿100.
+  const lowerLimit = Math.max(0, current - Math.min(searchLimit, Math.max(3000, current * 0.75)));
+  const upperLimit = current + searchLimit;
+
   let lower = null;
   let higher = null;
-  let nearest = null;
-  let nearestDistance = Infinity;
 
-  for (let candidate = 0; candidate <= upperLimit; candidate++) {
+  // Search downward from current, so the first valid match is the closest lower value.
+  for (let candidate = current; candidate >= lowerLimit; candidate--) {
     const lf = getDeliveryAbsorptionLeftoverForAmount(candidate);
     if (lf <= maxLeftover) {
-      if (candidate <= current) lower = candidate;
-      if (candidate >= current && higher === null) higher = candidate;
-      const dist = Math.abs(candidate - current);
-      if (dist < nearestDistance) {
-        nearest = candidate;
-        nearestDistance = dist;
-      }
+      lower = candidate;
+      break;
     }
+  }
+
+  // Search upward from current, so the first valid match is the closest higher value.
+  for (let candidate = current; candidate <= upperLimit; candidate++) {
+    const lf = getDeliveryAbsorptionLeftoverForAmount(candidate);
+    if (lf <= maxLeftover) {
+      higher = candidate;
+      break;
+    }
+  }
+
+  let nearest = null;
+  if (lower != null && higher != null) {
+    nearest = (current - lower <= higher - current) ? lower : higher;
+  } else {
+    nearest = lower != null ? lower : higher;
   }
 
   return { lower, higher, nearest };
@@ -1433,7 +1448,7 @@ function showDeliveryAbsorbWarning(currentAmount, leftover) {
     'เนื่องจากส่วนต่างจากการปัดเศษเกิน 100 บาท (ส่วนต่างปัจจุบัน ฿' + Math.round(leftover).toLocaleString('th-TH') + ')<br>' +
     'กรุณาปรับค่าขนส่ง หรือแยกค่าขนส่งออกจากรายการสินค้า' +
     (buttons.length
-      ? '<div style="margin-top:8px;">แนะนำค่าขนส่งที่ระบบรับได้:<br>' + buttons.join('') + '</div>'
+      ? '<div style="margin-top:8px;">แนะนำค่าขนส่งใกล้เคียงที่ระบบรับได้:<br>' + buttons.join('') + '</div>'
       : '<div style="margin-top:8px;color:#92400E;">ยังไม่พบค่าขนส่งที่ลงตัวในช่วงที่ระบบตรวจสอบ — แนะนำให้แยกค่าขนส่งออกจากรายการสินค้า</div>');
   box.style.display = 'block';
 }
