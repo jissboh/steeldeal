@@ -694,7 +694,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
               <input type="checkbox" id="include-delivery-toggle" onchange="toggleIncludeDeliveryInProductPrice()">
               <span>รวมค่าส่งในราคาสินค้า / แสดงค่าส่งเป็นฟรี</span>
             </label>
-            <div class="hint">ระบบจะเฉลี่ยค่าส่งเข้าไปในราคาสินค้าเป็นจำนวนเต็ม และส่วนต่างไม่เกิน 100 บาทจะถือเป็นส่วนลดให้ลูกค้า</div>
+            <div class="hint">ระบบจะเฉลี่ยค่าส่งเข้าไปในราคาสินค้าเป็นจำนวนเต็ม และส่วนต่างไม่เกิน 500 บาทจะถือเป็นส่วนลด/ส่วนปรับราคาให้ลูกค้า</div>
             <div id="delivery-absorb-warning" class="delivery-absorb-warning"></div>
           </div>
         </div>
@@ -1335,7 +1335,19 @@ function getPaymentLabel(payment = selectedPayment) {
 }
 
 function buildCustomerPriceBase(logistics = 0, includeDelivery = false) {
-  const calc = buildOrderCalcLines(logistics, includeDelivery);
+  const logisticsRounded = Math.max(0, Math.round(Number(logistics) || 0));
+  let effectiveIncludeDelivery = !!includeDelivery && logisticsRounded > 0;
+  let calc = buildOrderCalcLines(logisticsRounded, effectiveIncludeDelivery);
+
+  // Stateless safety guard:
+  // Never let an invalid absorbed-delivery calculation leak into totals.
+  // If the current order cannot absorb the delivery within the configured tolerance/caps,
+  // fall back to normal separate-delivery math for this calculation only.
+  if (effectiveIncludeDelivery && Math.abs(Math.round(Number(calc.leftoverDiscount || 0))) > DELIVERY_ABSORB_TOLERANCE) {
+    effectiveIncludeDelivery = false;
+    calc = buildOrderCalcLines(logisticsRounded, false);
+  }
+
   const lines = calc.lines.map(l => {
     const qty = Number(l.qty) || 1;
     const unitPrice = Number(l.displayUnitPrice || l.unitPrice || 0);
@@ -1365,10 +1377,10 @@ function buildCustomerPriceBase(logistics = 0, includeDelivery = false) {
     };
   });
   const itemSubtotal = lines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0);
-  const absorbedDeliveryTotal = includeDelivery ? Math.round(Number(calc.absorbedDeliveryTotal || 0)) : 0;
-  const leftoverDiscount = includeDelivery ? Math.max(0, Math.round(Number(calc.leftoverDiscount || 0))) : 0;
-  const beforePaymentSubtotal = itemSubtotal + (includeDelivery ? 0 : Math.round(Number(logistics) || 0));
-  return { ...calc, lines, itemSubtotal, absorbedDeliveryTotal, leftoverDiscount, beforePaymentSubtotal };
+  const absorbedDeliveryTotal = effectiveIncludeDelivery ? Math.round(Number(calc.absorbedDeliveryTotal || 0)) : 0;
+  const leftoverDiscount = effectiveIncludeDelivery ? Math.max(0, Math.abs(Math.round(Number(calc.leftoverDiscount || 0)))) : 0;
+  const beforePaymentSubtotal = itemSubtotal + (effectiveIncludeDelivery ? 0 : logisticsRounded);
+  return { ...calc, lines, itemSubtotal, absorbedDeliveryTotal, leftoverDiscount, beforePaymentSubtotal, effectiveIncludeDelivery };
 }
 
 let isUpdating    = false;
@@ -1377,12 +1389,22 @@ let plShowIncl    = false;
 let sheetProducts = [];   // raw from sheet, for price list tab
 let includeDeliveryInProductPrice = false; // customer-facing presentation mode: fold delivery into product price
 
+const DELIVERY_ABSORB_TOLERANCE = 500;
+// Delivery absorption tuning
+// Hybrid allocation makes freight feel more natural than pure weight or pure product value.
+// 70% follows product value, 30% follows weight.
+// Hard cap prevents cheap/heavy items from being distorted too much.
+const DELIVERY_ALLOCATION_VALUE_WEIGHT = 0.70;
+const DELIVERY_ALLOCATION_WEIGHT_WEIGHT = 0.30;
+const DELIVERY_MAX_UNIT_INCREASE_PCT = 0.05; // hard cap: do not lift an item more than 5% from base price
+const DELIVERY_MAX_UNIT_INCREASE_BAHT = 25; // hard cap: also do not lift more than ฿25/unit
+
 function getDeliveryAbsorptionLeftoverForAmount(amount) {
   const calc = buildOrderCalcLines(Math.max(0, Math.round(Number(amount) || 0)), true);
-  return Math.max(0, Math.round(Number(calc.leftoverDiscount || 0)));
+  return Math.abs(Math.round(Number(calc.leftoverDiscount || 0)));
 }
 
-function findCleanDeliveryRecommendations(currentAmount, maxLeftover = 100, searchLimit = 50000) {
+function findCleanDeliveryRecommendations(currentAmount, maxLeftover = DELIVERY_ABSORB_TOLERANCE, searchLimit = 50000) {
   // Find useful delivery recommendations around the user's current input.
   // Important: do NOT scan from 0, otherwise the system may recommend silly values
   // such as ฿100 just because they technically pass the rounding test.
@@ -1429,7 +1451,7 @@ function showDeliveryAbsorbWarning(currentAmount, leftover) {
   if (!box) return;
 
   const current = Math.round(Number(currentAmount) || 0);
-  const rec = findCleanDeliveryRecommendations(current, 100, 50000);
+  const rec = findCleanDeliveryRecommendations(current, DELIVERY_ABSORB_TOLERANCE, 50000);
   const buttons = [];
   const seen = new Set();
 
@@ -1439,14 +1461,20 @@ function showDeliveryAbsorbWarning(currentAmount, leftover) {
     buttons.push('<button type="button" onclick="applyRecommendedDelivery(' + amount + ')">' + label + ' ฿' + amount.toLocaleString('th-TH') + '</button>');
   }
 
+  // Operational guardrail: show only useful recommendations.
+  // Higher suggestions can be mathematically valid but confusing in real work, so only show them
+  // when they are very close to the current amount.
   addSuggestion('แนะนำใกล้สุด:', rec.nearest);
-  addSuggestion('ลดลงเป็น:', rec.lower);
-  addSuggestion('เพิ่มเป็น:', rec.higher);
+  if (rec.lower != null && rec.lower !== rec.nearest) addSuggestion('ลดลงเป็น:', rec.lower);
+  if (rec.higher != null && rec.higher !== rec.nearest && rec.higher <= current * 1.10 && (rec.higher - current) <= 3000) {
+    addSuggestion('เพิ่มเป็น:', rec.higher);
+  }
 
   box.innerHTML =
     '<strong>ไม่สามารถรวมค่าขนส่งในราคาสินค้าได้</strong><br>' +
-    'เนื่องจากส่วนต่างจากการปัดเศษเกิน 100 บาท (ส่วนต่างปัจจุบัน ฿' + Math.round(leftover).toLocaleString('th-TH') + ')<br>' +
-    'กรุณาปรับค่าขนส่ง หรือแยกค่าขนส่งออกจากรายการสินค้า' +
+    'เนื่องจากส่วนต่างจากการปัดเศษเกินเกณฑ์ที่รับได้ ฿' + DELIVERY_ABSORB_TOLERANCE.toLocaleString('th-TH') + ' (ส่วนต่างปัจจุบัน ฿' + Math.round(leftover).toLocaleString('th-TH') + ')<br>' +
+    'กรุณาปรับค่าขนส่ง หรือแยกค่าขนส่งออกจากรายการสินค้า<br>' +
+    '<span style="color:#92400E;">ระบบจำกัดการดันราคาต่อสินค้าไม่เกิน 5% หรือ ฿25/หน่วย เพื่อไม่ให้ราคาสินค้าบิดเบี้ยวเกินจริง</span>' +
     (buttons.length
       ? '<div style="margin-top:8px;">แนะนำค่าขนส่งใกล้เคียงที่ระบบรับได้:<br>' + buttons.join('') + '</div>'
       : '<div style="margin-top:8px;color:#92400E;">ยังไม่พบค่าขนส่งที่ลงตัวในช่วงที่ระบบตรวจสอบ — แนะนำให้แยกค่าขนส่งออกจากรายการสินค้า</div>');
@@ -1459,6 +1487,35 @@ function hideDeliveryAbsorbWarning() {
     box.style.display = 'none';
     box.innerHTML = '';
   }
+}
+
+function getEffectiveDeliveryAbsorption(logistics = 0, showNotice = false) {
+  const toggle = document.getElementById('include-delivery-toggle');
+  const requested = !!(toggle && toggle.checked);
+  const amount = Math.max(0, Math.round(Number(logistics) || 0));
+
+  if (!requested || amount <= 0) {
+    includeDeliveryInProductPrice = false;
+    if (amount <= 0) hideDeliveryAbsorbWarning();
+    return false;
+  }
+
+  const leftover = getDeliveryAbsorptionLeftoverForAmount(amount);
+  const valid = leftover <= DELIVERY_ABSORB_TOLERANCE;
+
+  if (!valid) {
+    if (toggle) toggle.checked = false;
+    includeDeliveryInProductPrice = false;
+    if (showNotice) {
+      showDeliveryAbsorbWarning(amount, leftover);
+      showToast('⚠️ ไม่สามารถรวมค่าขนส่งได้ กรุณาปรับค่าขนส่งหรือแยกค่าส่ง', 'error');
+    }
+    return false;
+  }
+
+  includeDeliveryInProductPrice = true;
+  hideDeliveryAbsorbWarning();
+  return true;
 }
 
 function applyRecommendedDelivery(amount) {
@@ -1489,34 +1546,19 @@ function validateDeliveryAbsorptionMode(showNotice = true) {
 
   if (!toggle || !toggle.checked || logistics <= 0) {
     hideDeliveryAbsorbWarning();
+    includeDeliveryInProductPrice = false;
     return true;
   }
 
-  const leftover = getDeliveryAbsorptionLeftoverForAmount(logistics);
-
-  if (leftover > 100) {
-    toggle.checked = false;
-    includeDeliveryInProductPrice = false;
-    if (showNotice) {
-      showDeliveryAbsorbWarning(logistics, leftover);
-      showToast('⚠️ ไม่สามารถรวมค่าขนส่งได้ กรุณาปรับค่าขนส่ง', 'error');
-    }
-    return false;
-  }
-
-  hideDeliveryAbsorbWarning();
-  return true;
+  return getEffectiveDeliveryAbsorption(logistics, showNotice);
 }
 
 function toggleIncludeDeliveryInProductPrice() {
-  const toggle = document.getElementById('include-delivery-toggle');
-  includeDeliveryInProductPrice = toggle?.checked || false;
-
-  if (includeDeliveryInProductPrice && !validateDeliveryAbsorptionMode(true)) {
-    includeDeliveryInProductPrice = false;
-  }
+  const logistics = Math.round(parseFloat(document.getElementById('logistics-cost')?.value) || 0);
+  includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, true);
 
   renderOrderItems();
+  updateSummary();
   const out = document.getElementById('quote-output');
   if (out && out.textContent && !out.textContent.includes('กดปุ่ม')) generateQuote();
 }
@@ -1586,40 +1628,110 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
 
   if (includeDelivery && logistics > 0 && lines.length) {
     const logisticsRounded = Math.round(Number(logistics) || 0);
-    let remainingShare = logisticsRounded;
 
-    lines.forEach((line, idx) => {
-      let share;
-      if (idx === lines.length - 1) {
-        share = remainingShare;
-      } else if (totalWeight > 0) {
-        share = Math.round(logisticsRounded * (line.weight / totalWeight));
-      } else if (totalQty > 0) {
-        share = Math.round(logisticsRounded * (line.qty / totalQty));
-      } else {
-        share = 0;
+    // Smart delivery absorption v3:
+    // 1) Hybrid allocation: mostly by product value, partly by weight.
+    //    This prevents heavy/cheap items from carrying too much freight while still respecting logistics reality.
+    // 2) Hard cap: keep each item within max +5% or +฿25/unit, whichever is lower.
+    // 3) If the delivery cannot fit within the cap, validation will block absorption and ask user to show delivery separately.
+    const totalBaseValue = lines.reduce((sum, l) => sum + (Number(l.baseLineTotal) || 0), 0) || subtotalGoods || 0;
+    const totalLineWeight = lines.reduce((sum, l) => sum + Math.max(0, Number(l.weight) || 0), 0);
+
+    lines.forEach(line => {
+      const qty = Math.max(1, Math.round(Number(line.qty) || 1));
+      const baseValue = Number(line.baseLineTotal) || 0;
+      const lineWeight = Math.max(0, Number(line.weight) || 0);
+
+      const valueShare = totalBaseValue > 0 ? (baseValue / totalBaseValue) : 0;
+      const weightShare = totalLineWeight > 0 ? (lineWeight / totalLineWeight) : valueShare;
+      const hybridShare = (DELIVERY_ALLOCATION_VALUE_WEIGHT * valueShare) + (DELIVERY_ALLOCATION_WEIGHT_WEIGHT * weightShare);
+      const targetShare = logisticsRounded * hybridShare;
+
+      const baseDisplayUnitPrice = Number(line.baseDisplayUnitPrice || Math.round(line.unitPrice || 0)) || 0;
+      const pctCap = Math.max(0, Math.floor(baseDisplayUnitPrice * DELIVERY_MAX_UNIT_INCREASE_PCT));
+      const hardMaxIncrement = Math.max(0, Math.min(DELIVERY_MAX_UNIT_INCREASE_BAHT, pctCap));
+      const requestedIncrement = Math.max(0, Math.round(targetShare / qty));
+
+      line._absorbQty = qty;
+      line._targetShare = targetShare;
+      line._hardMaxIncrement = hardMaxIncrement;
+      line._unitIncrement = Math.min(requestedIncrement, hardMaxIncrement);
+      line.deliveryShare = Math.round(targetShare);
+    });
+
+    function currentAbsorbed() {
+      return lines.reduce((sum, l) => sum + ((Number(l._unitIncrement) || 0) * (Number(l._absorbQty) || 0)), 0);
+    }
+
+    function optimizeIncrements() {
+      for (let guard = 0; guard < 8000; guard++) {
+        const current = currentAbsorbed();
+        const currentDiff = Math.abs(logisticsRounded - current);
+        let bestLine = null;
+        let bestDelta = 0;
+        let bestDiff = currentDiff;
+        let bestScore = Infinity;
+
+        for (const line of lines) {
+          const qty = Number(line._absorbQty) || 0;
+          if (!qty) continue;
+          const inc = Number(line._unitIncrement) || 0;
+          const hardMax = Number(line._hardMaxIncrement) || 0;
+          const basePrice = Number(line.baseDisplayUnitPrice || Math.round(line.unitPrice || 0)) || 1;
+
+          // Try increasing this row by ฿1/unit, but never beyond distortion cap.
+          if (inc < hardMax) {
+            const plusDiff = Math.abs(logisticsRounded - (current + qty));
+            const relativeIncreaseAfter = (inc + 1) / basePrice;
+            const score = relativeIncreaseAfter;
+            if (plusDiff < bestDiff || (plusDiff === bestDiff && score < bestScore)) {
+              bestDiff = plusDiff;
+              bestLine = line;
+              bestDelta = 1;
+              bestScore = score;
+            }
+          }
+
+          // Try decreasing this row by ฿1/unit, but never below base price.
+          if (inc > 0) {
+            const minusDiff = Math.abs(logisticsRounded - (current - qty));
+            const relativeIncreaseAfter = Math.max(0, inc - 1) / basePrice;
+            if (minusDiff < bestDiff || (minusDiff === bestDiff && relativeIncreaseAfter < bestScore)) {
+              bestDiff = minusDiff;
+              bestLine = line;
+              bestDelta = -1;
+              bestScore = relativeIncreaseAfter;
+            }
+          }
+        }
+
+        if (!bestLine || bestDelta === 0 || bestDiff >= currentDiff) break;
+        bestLine._unitIncrement = Math.max(0, (Number(bestLine._unitIncrement) || 0) + bestDelta);
+        if (bestDiff <= DELIVERY_ABSORB_TOLERANCE) break;
       }
+    }
 
-      remainingShare -= share;
-      share = Math.max(0, share);
-      line.deliveryShare = share;
+    // Optimize within hard distortion cap only.
+    optimizeIncrements();
 
-      // Hybrid delivery absorption:
-      // absorb as much delivery as possible into clean whole-baht unit prices.
-      // any small leftover (<= 100) becomes hidden customer discount, not a fee line.
-      const qty = Number(line.qty) || 1;
-      const unitIncrement = Math.floor(share / qty);
+    lines.forEach(line => {
+      const qty = Number(line._absorbQty) || 1;
+      const unitIncrement = Number(line._unitIncrement) || 0;
       const absorbed = unitIncrement * qty;
-      const remainder = Math.max(0, share - absorbed);
 
       line.absorbedDelivery = absorbed;
-      line.leftoverDiscountShare = remainder;
+      line.leftoverDiscountShare = 0;
       line.displayUnitPrice = Number(line.baseDisplayUnitPrice || Math.round(line.unitPrice || 0)) + unitIncrement;
       line.displaySubtotal = line.displayUnitPrice * qty;
       absorbedDeliveryTotal += absorbed;
+
+      delete line._absorbQty;
+      delete line._unitIncrement;
+      delete line._hardMaxIncrement;
     });
 
-    leftoverDiscount = Math.max(0, logisticsRounded - absorbedDeliveryTotal);
+    // Positive = under-absorbed, negative = over-absorbed. Validation uses absolute value.
+    leftoverDiscount = logisticsRounded - absorbedDeliveryTotal;
   }
 
   return { lines, subtotalGoods, totalWeight, totalQty, absorbedDeliveryTotal, leftoverDiscount };
@@ -1658,7 +1770,7 @@ function updateRowTotal(id) {
   if (!item || !rowTotalEl) return;
 
   const logistics = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
-  includeDeliveryInProductPrice = document.getElementById('include-delivery-toggle')?.checked || false;
+  includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, false);
   const calc = buildOrderCalcLines(logistics, includeDeliveryInProductPrice);
   const line = calc.lines.find(l => l.id === id);
 
@@ -2150,7 +2262,7 @@ function renderOrderItems() {
   }
 
   const logistics = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
-  includeDeliveryInProductPrice = document.getElementById('include-delivery-toggle')?.checked || false;
+  includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, false);
   const calc = buildOrderCalcLines(logistics, includeDeliveryInProductPrice);
   const lineMap = new Map(calc.lines.map(l => [l.id, l]));
 
@@ -2286,9 +2398,10 @@ function updateSummary() {
     updateTotalWeight();
     const logistics = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
     const vatRate   = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
-    includeDeliveryInProductPrice = document.getElementById('include-delivery-toggle')?.checked || false;
+    includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, false);
 
     const base = buildCustomerPriceBase(logistics, includeDeliveryInProductPrice);
+    includeDeliveryInProductPrice = base.effectiveIncludeDelivery;
     const lines = base.lines;
     const itemSubtotal = base.itemSubtotal;
     const beforePaymentSubtotal = base.beforePaymentSubtotal;
@@ -2382,9 +2495,10 @@ function generateQuote() {
   const notes     = document.getElementById('order-notes').value;
   const logistics = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
   const vatRate   = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
-  includeDeliveryInProductPrice = document.getElementById('include-delivery-toggle')?.checked || false;
+  includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, false);
 
   const base = buildCustomerPriceBase(logistics, includeDeliveryInProductPrice);
+  includeDeliveryInProductPrice = base.effectiveIncludeDelivery;
   const displayLines = base.lines;
   const itemSubtotal = base.itemSubtotal;
   const beforePaymentSubtotal = base.beforePaymentSubtotal;
@@ -2748,8 +2862,9 @@ async function generatePO() {
   const companyTaxID = document.getElementById('company-taxid')?.value || '';
   const logistics   = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
   const vatRate     = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
-  includeDeliveryInProductPrice = document.getElementById('include-delivery-toggle')?.checked || false;
+  includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, false);
   const base = buildCustomerPriceBase(logistics, includeDeliveryInProductPrice);
+  includeDeliveryInProductPrice = base.effectiveIncludeDelivery;
   const sourceLines = base.lines;
   const itemSubtotal = base.itemSubtotal;
   const beforePaymentSubtotal = base.beforePaymentSubtotal;
