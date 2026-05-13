@@ -933,13 +933,6 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
               <span style="font-size:11px;color:var(--muted);">ใช้เฉพาะ JPG ใบเสนอราคา</span>
             </div>
           </div>
-          <div class="quote-mode-box">
-            <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin:0 0 6px 0;cursor:pointer;">
-              <input type="checkbox" id="quote-show-supplier" style="width:16px;height:16px;">
-              แสดงชื่อ Supplier ในใบเสนอราคาเมื่อลูกค้าขอ
-            </label>
-            <div style="font-size:11px;color:var(--muted);padding-left:24px;">ค่าเริ่มต้นไม่แสดง Supplier เพื่อไม่เปิดเผยแหล่งซื้อโดยไม่จำเป็น</div>
-          </div>
           <div id="quote-output">กดปุ่ม "สร้างใบเสนอราคา" เพื่อสร้างข้อความส่งให้ลูกค้า...</div>
         </div>
       </div>
@@ -1363,11 +1356,6 @@ function getPaymentLabel(payment = selectedPayment) {
   if (type === 'transfer') return 'โอนเงิน';
   if (months > 0) return 'ผ่อน ' + months + ' เดือน 0%';
   return 'บัตรเครดิต เงินสด';
-}
-
-function isQuoteSupplierVisible() {
-  const el = document.getElementById('quote-show-supplier');
-  return !!(el && el.checked);
 }
 
 function getItemSupplier(item) {
@@ -2368,7 +2356,7 @@ function renderOrderItems() {
     const opsFields = '<div class="line-ops-grid">' +
       '<div><label>Supplier (ไม่แสดงเป็นค่าเริ่มต้น)</label><input type="text" value="' + supplierName + '" placeholder="เช่น โรง A / Supplier B" oninput="updateItemSoft(' + item.id + ',\'supplierName\',this.value)"></div>' +
       '<div><label>น้ำหนัก/หน่วย override (kg)</label><input type="number" min="0" step="0.01" value="' + (item.weightOverride ?? '') + '" placeholder="เดิม ' + (defaultWeightPerUnit ? defaultWeightPerUnit.toFixed(2) : '0.00') + '" oninput="updateItemSoft(' + item.id + ',\'weightOverride\',this.value)"></div>' +
-      '<div style="grid-column:1 / -1;"><label class="checkbox-label" style="font-size:11px;margin:0;color:var(--int);"><input type="checkbox" ' + (item.showSupplier ? 'checked' : '') + ' onchange="updateItemSoft(' + item.id + ',\'showSupplier\',this.checked)">แสดง Supplier รายการนี้ในใบเสนอราคา ถ้าเปิดตัวเลือกด้านขวาด้วย</label>' +
+      '<div style="grid-column:1 / -1;"><label class="checkbox-label" style="font-size:11px;margin:0;color:var(--int);"><input type="checkbox" ' + (item.showSupplier ? 'checked' : '') + ' onchange="updateItemSoft(' + item.id + ',\'showSupplier\',this.checked)">แสดง Supplier รายการนี้ในใบเสนอราคา</label>' +
       '<div class="line-ops-note">น้ำหนัก override มีผลกับการเลือกรถ/ค่าส่ง/การเฉลี่ยค่าส่งทันที แต่ไม่แก้ฐานข้อมูลสินค้า</div></div>' +
     '</div>';
     const wBadge = p?.weight ? '<span class="weight-badge">🔒 ' + p.weight + ' kg/เส้น' + (p.pricekg?'  ·  ฿'+p.pricekg+'/kg':'') + '</span>' : '';
@@ -2608,7 +2596,7 @@ function generateQuote() {
   const grand = paymentSubtotal + vat;
 
   const lines = displayLines.map(l => {
-    const itemNameForQuote = l.name + ((isQuoteSupplierVisible() && l.showSupplier && l.supplierName) ? ' - ' + l.supplierName : '');
+    const itemNameForQuote = l.name + ((l.showSupplier && l.supplierName) ? ' - ' + l.supplierName : '');
     return '  ▸ ' + itemNameForQuote + '\n     ' + l.qty + ' ' + l.unit + ' × ฿' + l.unitPrice.toLocaleString() + ' = ฿' + l.subtotal.toLocaleString();
   });
 
@@ -2999,7 +2987,7 @@ async function generatePO() {
   else payTerms = 'ผ่อน ' + months + ' เดือน 0% — เดือนละ ฿' + Math.ceil(grandTotal/months).toLocaleString();
   const itemRows = lines.map((item, idx) =>
     '<tr><td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+(idx+1)+'</td>' +
-    '<td style="padding:6px 8px;border-bottom:1px solid #eee;">'+item.name + ((isQuoteSupplierVisible() && item.showSupplier && item.supplierName) ? ' - ' + escapeHTML(item.supplierName) : '') + '</td>' +
+    '<td style="padding:6px 8px;border-bottom:1px solid #eee;">'+item.name + ((item.showSupplier && item.supplierName) ? ' - ' + escapeHTML(item.supplierName) : '') + '</td>' +
     '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+item.qty+' '+item.unit+'</td>' +
     '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.unitPrice.toLocaleString('th-TH')+'</td>' +
     '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.subtotal.toLocaleString('th-TH')+'</td></tr>'
@@ -3142,7 +3130,7 @@ async function generatePO() {
         companyTaxID: isVatInvoice ? companyTaxID : '',
         productSummary: lines.map(l => l.name + ' x' + l.qty).join('; '),
         supplierSummary: lines.filter(l => l.supplierName).map(l => l.name + ': ' + l.supplierName).join('; '),
-        supplierVisibleInQuote: isQuoteSupplierVisible(),
+        supplierVisibleInQuote: lines.some(l => !!(l.showSupplier && l.supplierName)),
         paymentLinePricingMode: 'line_items_adjusted_by_selected_payment',
         totalWeightKg: lines.reduce((sum, l) => sum + (Number(l.weight) || 0), 0),
         items: lines.map(l => ({
@@ -3178,7 +3166,7 @@ async function generatePO() {
 // ARCHITECTURE NOTES — 2026-05-13 UPDATE
 // ════════════════════════════════════════
 // Supplier is stored per order item only and is hidden from customer outputs unless
-// both conditions are true: global quote-show-supplier is checked AND the item checkbox is checked.
+// the item-level showSupplier checkbox is checked. No global supplier toggle is used.
 // Weight override is also per order item only: it affects truck recommendation, logistics,
 // delivery absorption allocation, internal summary, JPG output payload, and quote log payload.
 // It does NOT modify Google Sheets product master data.
