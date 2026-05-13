@@ -2608,10 +2608,8 @@ function generateQuote() {
   const grand = paymentSubtotal + vat;
 
   const lines = displayLines.map(l => {
-    const supplierLine = (isQuoteSupplierVisible() && l.showSupplier && l.supplierName) ? '
-     Supplier: ' + l.supplierName : '';
-    return '  ▸ ' + l.name + supplierLine + '
-     ' + l.qty + ' ' + l.unit + ' × ฿' + l.unitPrice.toLocaleString() + ' = ฿' + l.subtotal.toLocaleString();
+    const itemNameForQuote = l.name + ((isQuoteSupplierVisible() && l.showSupplier && l.supplierName) ? ' - ' + l.supplierName : '');
+    return '  ▸ ' + itemNameForQuote + '\n     ' + l.qty + ' ' + l.unit + ' × ฿' + l.unitPrice.toLocaleString() + ' = ฿' + l.subtotal.toLocaleString();
   });
 
   let payLine = '';
@@ -2626,10 +2624,8 @@ function generateQuote() {
   const dateStr = now.getDate() + '/' + (now.getMonth()+1) + '/' + now.getFullYear();
   const salesDiscLine = salesDisc > 0 ? '  ✂️ ส่วนลดพิเศษ' + (discReason ? ' (' + discReason + ')' : '') + ': -฿' + salesDisc.toLocaleString() + '\n' : '';
   const itemPriceLabel = includeDeliveryInProductPrice && logistics > 0
-    ? '  💵 ราคาสินค้า (' + getPaymentLabel(selectedPayment) + ' / รวมค่าส่งแล้ว): ฿' + itemSubtotal.toLocaleString() + '
-'
-    : '  💵 ราคาสินค้า (' + getPaymentLabel(selectedPayment) + '): ฿' + itemSubtotal.toLocaleString() + '
-';
+    ? '  💵 ราคาสินค้า (' + getPaymentLabel(selectedPayment) + ' / รวมค่าส่งแล้ว): ฿' + itemSubtotal.toLocaleString() + '\n'
+    : '  💵 ราคาสินค้า (' + getPaymentLabel(selectedPayment) + '): ฿' + itemSubtotal.toLocaleString() + '\n';
   const logLine = logistics > 0
     ? (includeDeliveryInProductPrice ? '  🚚 ค่าขนส่ง: ฟรี\n' : '  🚚 ค่าขนส่ง: ฿' + logistics.toLocaleString() + '\n')
     : '';
@@ -3003,7 +2999,7 @@ async function generatePO() {
   else payTerms = 'ผ่อน ' + months + ' เดือน 0% — เดือนละ ฿' + Math.ceil(grandTotal/months).toLocaleString();
   const itemRows = lines.map((item, idx) =>
     '<tr><td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+(idx+1)+'</td>' +
-    '<td style="padding:6px 8px;border-bottom:1px solid #eee;">'+item.name + ((isQuoteSupplierVisible() && item.showSupplier && item.supplierName) ? '<div style="font-size:10px;color:#64748B;margin-top:2px;">Supplier: '+item.supplierName+'</div>' : '') + '</td>' +
+    '<td style="padding:6px 8px;border-bottom:1px solid #eee;">'+item.name + ((isQuoteSupplierVisible() && item.showSupplier && item.supplierName) ? ' - ' + escapeHTML(item.supplierName) : '') + '</td>' +
     '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+item.qty+' '+item.unit+'</td>' +
     '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.unitPrice.toLocaleString('th-TH')+'</td>' +
     '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.subtotal.toLocaleString('th-TH')+'</td></tr>'
