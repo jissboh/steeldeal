@@ -984,7 +984,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
       <button class="btn btn-ghost" onclick="loadQuoteHistory()">↻ โหลดรายการล่าสุด</button>
     </div>
     <div class="panel-body">
-      <div class="section-internal">แนะนำให้ใช้ “คัดลอกเป็นใบใหม่” เพื่อรักษาประวัติใบเสนอราคาเดิม ไม่เขียนทับเลขเดิม</div>
+      <div class="section-internal">แนะนำให้ใช้ “คัดลอกเป็นใบใหม่” เพื่อรักษาประวัติใบเสนอราคาเดิม ไม่เขียนทับเลขเดิม — ถ้าขึ้น ไม่มี Payload ให้สร้างใบเสนอราคาหลังอัปเดต Apps Script v5</div>
       <div class="quote-toolbar">
         <input type="text" id="quote-search" placeholder="ค้นหาเลขที่ใบเสนอราคา / ชื่อลูกค้า / เบอร์โทร" onkeydown="if(event.key==='Enter')loadQuoteHistory()">
         <button class="btn btn-primary" onclick="loadQuoteHistory()">ค้นหา</button>
@@ -2633,7 +2633,7 @@ function generateQuote() {
 
   const lines = displayLines.map(l => {
     const itemNameForQuote = l.name + ((l.showSupplier && l.supplierName) ? ' - ' + l.supplierName : '');
-    const weightText = (l.showWeight && l.weight) ? '\n     น้ำหนักรวม ' + Number(l.weight).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg' : '';
+    const weightText = (l.showWeight && l.weight) ? '\n     น้ำหนัก/' + (l.unit || 'หน่วย') + ': ' + Number(l.weightPerUnit || 0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg  -   น้ำหนักรวม: ' + Number(l.weight).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg' : '';
     return '  ▸ ' + itemNameForQuote + '\n     ' + l.qty + ' ' + l.unit + ' × ฿' + l.unitPrice.toLocaleString() + ' = ฿' + l.subtotal.toLocaleString() + weightText;
   });
 
@@ -3025,7 +3025,7 @@ async function generatePO() {
   else payTerms = 'ผ่อน ' + months + ' เดือน 0% — เดือนละ ฿' + Math.ceil(grandTotal/months).toLocaleString();
   const itemRows = lines.map((item, idx) => {
     const supplierText = (item.showSupplier && item.supplierName) ? ' - ' + escapeHTML(item.supplierName) : '';
-    const weightText = (item.showWeight && item.weight) ? '<div style="font-size:10px;color:#64748B;margin-top:2px;">น้ำหนักรวม ' + Number(item.weight).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg</div>' : '';
+    const weightText = (item.showWeight && item.weight) ? '<div style="font-size:10px;color:#64748B;margin-top:2px;">น้ำหนัก/' + (item.unit || 'หน่วย') + ': ' + Number(item.weightPerUnit || 0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg  -   น้ำหนักรวม: ' + Number(item.weight).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg</div>' : '';
     return '<tr><td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+(idx+1)+'</td>' +
     '<td style="padding:6px 8px;border-bottom:1px solid #eee;">'+escapeHTML(item.name) + supplierText + weightText + '</td>' +
     '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+item.qty+' '+item.unit+'</td>' +
@@ -3213,7 +3213,7 @@ async function generatePO() {
 // ════════════════════════════════════════
 function buildQuoteRecallPayload(originalQuoteNo) {
   return {
-    version: 'v41_quote_recall_remark_weight_toggle',
+    version: 'v42_quote_recall_remark_weight_payloadfix',
     originalQuoteNo: originalQuoteNo || '',
     savedAt: new Date().toISOString(),
     customer: {
