@@ -263,6 +263,182 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 .line-ops-grid label { font-size: 10px; margin-bottom: 2px; }
 .line-ops-grid input { padding: 6px 8px; font-size: 12px; }
 .line-ops-note { font-size: 10px; color: var(--int); margin-top: 3px; line-height: 1.35; }
+
+.supplier-calc-toggle {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #0F766E;
+  background: #F0FDFA;
+  border: 1px solid #99F6E4;
+  border-radius: 999px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.supplier-calc-box {
+  margin-top: 10px;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  padding: 10px;
+  align-self: stretch;
+}
+.supplier-calc-side .supplier-calc-box {
+  margin-top: 0;
+  height: 100%;
+}
+.supplier-calc-side {
+  align-self: stretch;
+}
+.product-main-panel {
+  min-width: 0;
+}
+.order-row-with-calc {
+  grid-template-columns: minmax(360px, 1.35fr) minmax(330px, .95fr) 120px 150px 120px 44px;
+  align-items: start;
+}
+.order-row-with-calc > div:nth-last-child(-n+4) {
+  align-self: end;
+}
+@media (max-width: 1180px) {
+  .order-row-with-calc {
+    grid-template-columns: 1fr;
+  }
+  .order-row-with-calc > div:nth-last-child(-n+4) {
+    align-self: stretch;
+  }
+}
+.supplier-calc-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #334155;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.supplier-calc-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.supplier-calc-grid label { font-size: 10px; margin-bottom: 2px; }
+.supplier-calc-grid input, .supplier-calc-grid select { padding: 6px 8px; font-size: 12px; }
+.supplier-calc-result {
+  margin-top: 8px;
+  padding: 8px;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: #065F46;
+}
+.supplier-calc-warning {
+  margin-top: 8px;
+  padding: 8px;
+  background: #FFF7ED;
+  border: 1px solid #FED7AA;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #9A3412;
+}
+.supplier-calc-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+.supplier-calc-apply {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid #DC2626;
+  background: #DC2626;
+  color: #fff;
+  border-radius: 7px;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+}
+.supplier-calc-apply.secondary {
+  background: #FFFFFF;
+  color: #0F172A;
+  border-color: #CBD5E1;
+}
+.supplier-calc-apply.safe {
+  background: #0F766E;
+  border-color: #0F766E;
+}
+.supplier-calc-apply:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  background: #94A3B8;
+  border-color: #94A3B8;
+  color: #fff;
+}
+
+/* V53: supplier calculator true right-side workspace */
+.order-row-with-calc-v2 {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 430px) !important;
+  gap: 16px !important;
+  align-items: stretch !important;
+}
+.order-row-left-workspace {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 12px;
+}
+.order-row-price-grid {
+  display: grid;
+  grid-template-columns: 150px 180px 120px 44px;
+  gap: 12px;
+  align-items: end;
+}
+.order-row-with-calc-v2 .supplier-calc-side {
+  width: 100% !important;
+  min-width: 0 !important;
+  align-self: stretch !important;
+}
+.order-row-with-calc-v2 .supplier-calc-box {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin-top: 0 !important;
+  height: 100%;
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+.order-row-with-calc-v2 .supplier-calc-title {
+  font-size: 13px;
+}
+.order-row-with-calc-v2 .supplier-calc-grid {
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px;
+}
+.order-row-with-calc-v2 .supplier-calc-result {
+  flex: 1;
+}
+@media (max-width: 980px) {
+  .order-row-with-calc-v2 {
+    grid-template-columns: 1fr !important;
+  }
+  .order-row-price-grid {
+    grid-template-columns: 150px 180px 120px 44px;
+  }
+}
+@media (max-width: 760px) {
+  .order-row-price-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .quote-mode-box {
   margin-bottom: 12px;
   padding: 10px 12px;
@@ -1857,7 +2033,7 @@ function updateItemSoft(id, field, value) {
   // Soft update avoids rebuilding the row while user is typing.
   const item = orderItems.find(i => i.id === id);
   if (!item) return;
-  if (field === 'customWeight' || field === 'customPrice' || field === 'weightOverride') {
+  if (field === 'customWeight' || field === 'customPrice' || field === 'weightOverride' || field === 'supplierCostKg' || field === 'supplierCostUnit' || field === 'targetMargin') {
     const v = parseFloat(value);
     item[field] = (!isNaN(v) && v > 0) ? v : null;
   } else if (field === 'qty') {
@@ -2312,7 +2488,7 @@ function buildPLCard(p) {
 // ════════════════════════════════════════
 function addOrderRow() {
   const id = Date.now();
-  orderItems.push({ id, sku: '', qty: 1, customPrice: null, customProduct: false, weightOverride: null, supplierName: '', showSupplier: false, showWeight: false });
+  orderItems.push({ id, sku: '', qty: 1, customPrice: null, customProduct: false, weightOverride: null, supplierName: '', showSupplier: false, showWeight: false, supplierCostMode: 'kg', supplierCostKg: null, supplierCostUnit: null, manualSellPrice: null, useSupplierCalc: false });
   renderOrderItems();
 }
 function addCustomOrderRow() {
@@ -2329,7 +2505,11 @@ function addCustomOrderRow() {
     weightOverride: null,
     supplierName: '',
     showSupplier: false,
-    showWeight: false
+    showWeight: false,
+    supplierCostMode: 'kg',
+    supplierCostKg: null,
+    supplierCostUnit: null,
+    targetMargin: 5
   });
   renderOrderItems();
 }
@@ -2367,6 +2547,142 @@ function updateItem(id, field, value) {
   }
   renderOrderItems();
 }
+
+function getSupplierFulfillmentCalc(item) {
+  const p = item.customProduct ? null : products.find(x => x.sku === item.sku);
+  const qty = parseFloat(item.qty) || 0;
+  const unit = item.customProduct ? (item.customUnit || 'เส้น') : (p?.unit || 'เส้น');
+  const weightPerUnit = getEffectiveWeightPerUnit(item, p);
+  const mode = item.supplierCostMode || 'kg';
+  const costKg = parseFloat(item.supplierCostKg) || 0;
+  const costUnit = parseFloat(item.supplierCostUnit) || 0;
+  const manualSellPrice = parseFloat(item.manualSellPrice) || 0;
+  const costPerUnit = mode === 'kg' ? (costKg * weightPerUnit) : costUnit;
+  const canCalc = qty > 0 && costPerUnit > 0;
+  const suggested3 = canCalc ? Math.ceil(costPerUnit / 0.97) : 0;
+  const suggested5 = canCalc ? Math.ceil(costPerUnit / 0.95) : 0;
+  const manualCanCalc = canCalc && manualSellPrice > 0;
+  const manualProfitPerUnit = manualCanCalc ? (manualSellPrice - costPerUnit) : 0;
+  const manualTotalCost = canCalc ? Math.round(costPerUnit * qty) : 0;
+  const manualTotalSell = manualCanCalc ? Math.round(manualSellPrice * qty) : 0;
+  const manualTotalProfit = manualCanCalc ? Math.round(manualProfitPerUnit * qty) : 0;
+  const manualGpPct = manualTotalSell > 0 ? (manualTotalProfit / manualTotalSell * 100) : 0;
+  const manualMarkupPct = costPerUnit > 0 ? (manualProfitPerUnit / costPerUnit * 100) : 0;
+  const suggested3TotalProfit = canCalc ? Math.round((suggested3 - costPerUnit) * qty) : 0;
+  const suggested5TotalProfit = canCalc ? Math.round((suggested5 - costPerUnit) * qty) : 0;
+  return { p, qty, unit, weightPerUnit, mode, costKg, costUnit, manualSellPrice, costPerUnit, canCalc, suggested3, suggested5, manualCanCalc, manualProfitPerUnit, manualTotalCost, manualTotalSell, manualTotalProfit, manualGpPct, manualMarkupPct, suggested3TotalProfit, suggested5TotalProfit };
+}
+
+function renderSupplierFulfillmentCalculator(item) {
+  const id = item.id;
+  const enabled = !!item.useSupplierCalc;
+  if (!enabled) {
+    return '<label class="supplier-calc-toggle"><input type="checkbox" onchange="updateItemSoft(' + id + ',\'useSupplierCalc\',this.checked); renderOrderItems();"> ใช้คำนวณต้นทุน Supplier</label>';
+  }
+
+  const c = getSupplierFulfillmentCalc(item);
+  const mode = c.mode;
+  const costValue = mode === 'kg' ? (item.supplierCostKg ?? '') : (item.supplierCostUnit ?? '');
+  const costField = mode === 'kg' ? 'supplierCostKg' : 'supplierCostUnit';
+  const manualSell = item.manualSellPrice ?? '';
+  const result = renderSupplierCalcResultHTML(c);
+  const canUse = c.canCalc ? '' : 'disabled';
+  const canUseManual = c.manualCanCalc ? '' : 'disabled';
+
+  return '<div class="supplier-calc-box">' +
+    '<div class="supplier-calc-title"><span>🧮 คำนวณต้นทุน Supplier</span><label style="display:flex;align-items:center;gap:5px;font-size:10px;color:#64748B;margin:0;"><input type="checkbox" checked onchange="updateItemSoft(' + id + ',\'useSupplierCalc\',this.checked); renderOrderItems();"> ปิดเครื่องคิดต้นทุน</label></div>' +
+    '<div class="supplier-calc-grid">' +
+      '<div><label>ต้นทุนคิดแบบ</label><select onchange="updateItemSoft(' + id + ',\'supplierCostMode\',this.value); renderOrderItems();">' +
+        '<option value="kg"' + (mode === 'kg' ? ' selected' : '') + '>บาท/kg</option>' +
+        '<option value="unit"' + (mode === 'unit' ? ' selected' : '') + '>บาท/หน่วย</option>' +
+      '</select></div>' +
+      '<div><label>' + (mode === 'kg' ? 'ต้นทุน Supplier (฿/kg)' : 'ต้นทุน Supplier (฿/หน่วย)') + '</label>' +
+        '<input type="number" min="0" step="0.01" value="' + costValue + '" placeholder="เช่น 26.5" oninput="updateItemSoft(' + id + ',\'' + costField + '\',this.value); updateSupplierCalcBox(' + id + ')"></div>' +
+      '<div><label>ราคาขายที่อยากเสนอ (฿/' + c.unit + ')</label><input type="number" min="0" step="1" value="' + manualSell + '" placeholder="เช่น 280" oninput="updateItemSoft(' + id + ',\'manualSellPrice\',this.value); updateSupplierCalcBox(' + id + ')"></div>' +
+      '<div><label>น้ำหนัก/หน่วย</label><input type="text" value="' + (c.weightPerUnit ? c.weightPerUnit.toFixed(2) + ' kg' : '-') + '" disabled></div>' +
+    '</div>' +
+    '<div id="supplier-calc-result-' + id + '">' + result + '</div>' +
+    '<div class="supplier-calc-actions">' +
+      '<button class="supplier-calc-apply secondary" ' + canUseManual + ' onclick="applySupplierManualPrice(' + id + ')">ใช้ราคาที่กรอก</button>' +
+      '<button class="supplier-calc-apply safe" ' + canUse + ' onclick="applySupplierSuggestedPrice(' + id + ',3)">ใช้ GP 3%</button>' +
+      '<button class="supplier-calc-apply" ' + canUse + ' onclick="applySupplierSuggestedPrice(' + id + ',5)">ใช้ GP 5%</button>' +
+      '<button class="supplier-calc-apply secondary" type="button" onclick="updateItemSoft(' + id + ',\'manualSellPrice\',' + (c.suggested5 || 0) + '); renderOrderItems();">เติมราคา GP 5%</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderSupplierCalcResultHTML(c) {
+  if (!c.canCalc) {
+    return '<div class="supplier-calc-warning">ใส่ต้นทุน Supplier เพื่อคำนวณ<br>' +
+      (c.mode === 'kg' && !c.weightPerUnit ? 'รายการนี้ยังไม่มีน้ำหนัก/หน่วย จึงคำนวณแบบบาท/kg ไม่ได้' : 'รองรับทั้งบาท/kg และบาท/หน่วย') +
+    '</div>';
+  }
+
+  const manualBlock = c.manualCanCalc
+    ? '<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #A7F3D0;">' +
+        'ราคาที่กรอก: <strong>฿' + Math.round(c.manualSellPrice).toLocaleString() + '</strong> / ' + c.unit + '<br>' +
+        'กำไร/หน่วย: <strong>฿' + Math.round(c.manualProfitPerUnit).toLocaleString() + '</strong><br>' +
+        'GP: <strong>' + c.manualGpPct.toFixed(2) + '%</strong> · Markup: ' + c.manualMarkupPct.toFixed(2) + '%<br>' +
+        'กำไรรวม: <strong>฿' + c.manualTotalProfit.toLocaleString() + '</strong>' +
+      '</div>'
+    : '<div style="margin-top:6px;color:#64748B;">ใส่ราคาขายที่อยากเสนอ เพื่อดู GP% จริง</div>';
+
+  return '<div class="supplier-calc-result">' +
+    'ต้นทุน/หน่วย: <strong>฿' + roundMoney(c.costPerUnit).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + '</strong> / ' + c.unit + '<br>' +
+    'ต้นทุนรวม: <strong>฿' + c.manualTotalCost.toLocaleString() + '</strong><br>' +
+    'แนะนำ GP 3%: <strong>฿' + c.suggested3.toLocaleString() + '</strong> / ' + c.unit + ' · กำไรรวม ~฿' + c.suggested3TotalProfit.toLocaleString() + '<br>' +
+    'แนะนำ GP 5%: <strong>฿' + c.suggested5.toLocaleString() + '</strong> / ' + c.unit + ' · กำไรรวม ~฿' + c.suggested5TotalProfit.toLocaleString() +
+    manualBlock +
+  '</div>';
+}
+
+function updateSupplierCalcBox(id) {
+  const item = orderItems.find(i => i.id === id);
+  const el = document.getElementById('supplier-calc-result-' + id);
+  if (!item || !el) return;
+  const c = getSupplierFulfillmentCalc(item);
+  el.innerHTML = renderSupplierCalcResultHTML(c);
+}
+
+function applySupplierManualPrice(id) {
+  const item = orderItems.find(i => i.id === id);
+  if (!item) return;
+  const c = getSupplierFulfillmentCalc(item);
+  if (!c.manualCanCalc || !c.manualSellPrice) {
+    showToast('⚠️ กรุณาใส่ต้นทุนและราคาขายที่อยากเสนอ', 'error');
+    return;
+  }
+  item.customPrice = Math.round(c.manualSellPrice);
+  item.supplierEstimatedCostPerUnit = roundMoney(c.costPerUnit);
+  item.supplierEstimatedTotalCost = c.manualTotalCost;
+  item.supplierManualSellPrice = Math.round(c.manualSellPrice);
+  item.supplierEstimatedProfit = c.manualTotalProfit;
+  item.supplierEstimatedGpPct = roundMoney(c.manualGpPct);
+  renderOrderItems();
+  showToast('✓ ใช้ราคาที่กรอก ฿' + Math.round(c.manualSellPrice).toLocaleString() + '/' + c.unit + ' แล้ว');
+}
+
+function applySupplierSuggestedPrice(id, marginPct = 5) {
+  const item = orderItems.find(i => i.id === id);
+  if (!item) return;
+  const c = getSupplierFulfillmentCalc(item);
+  if (!c.canCalc) {
+    showToast('⚠️ กรุณาใส่ต้นทุน Supplier และน้ำหนักให้ครบ', 'error');
+    return;
+  }
+  const price = Number(marginPct) === 3 ? c.suggested3 : c.suggested5;
+  const totalProfit = Number(marginPct) === 3 ? c.suggested3TotalProfit : c.suggested5TotalProfit;
+  item.customPrice = price;
+  item.manualSellPrice = price;
+  item.supplierEstimatedCostPerUnit = roundMoney(c.costPerUnit);
+  item.supplierEstimatedTotalCost = c.manualTotalCost;
+  item.supplierTargetMargin = marginPct;
+  item.supplierEstimatedProfit = totalProfit;
+  item.supplierEstimatedGpPct = marginPct;
+  renderOrderItems();
+  showToast('✓ ใช้ราคา GP ' + marginPct + '% ฿' + price.toLocaleString() + '/' + c.unit + ' แล้ว');
+}
+
 function renderOrderItems() {
   const container = document.getElementById('order-items');
   if (orderItems.length === 0) {
@@ -2411,6 +2727,7 @@ function renderOrderItems() {
         'ค่าส่งเฉลี่ย +฿' + deliveryPerUnit.toLocaleString() + '/' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit || 'เส้น')) + '<br>' +
         'ราคาลูกค้า ฿' + displayUnitPrice.toLocaleString() + '/' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit || 'เส้น')) +
       '</div>' : '<div id="delivery-breakdown-' + item.id + '" class="editable-price-note"></div>';
+    const supplierCalcPanel = renderSupplierFulfillmentCalculator(item);
 
     const productCell = isCustomRow ?
       '<div><label>สินค้า</label>' +
@@ -2429,7 +2746,7 @@ function renderOrderItems() {
             '</select></div>' +
             '<div><label>สถานะ</label><span class="weight-badge">Manual</span></div>' +
           '</div>' +
-        '</div>' + customTotalWt + opsFields + '</div>'
+        '</div>' + customTotalWt + opsFields + (!item.useSupplierCalc ? supplierCalcPanel : '') + '</div>'
       :
       '<div><label>สินค้า</label><select onchange="updateItem(' + item.id + ',\'sku\',this.value)" style="font-size:13px;">' +
         '<option value="">— เลือกสินค้า —</option>' +
@@ -2438,21 +2755,35 @@ function renderOrderItems() {
       '<label class="custom-product-label"><input type="checkbox" onchange="updateItem(' + item.id + ',\'customProduct\',this.checked)"> สินค้าโป๊ว</label>' +
       '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">' +
         (item.sku ? '<span class="sku-code">' + escapeHTML(item.sku) + '</span>' : '') + wBadge + totalWt +
-      '</div>' + opsFields + '</div>';
+      '</div>' + opsFields + (!item.useSupplierCalc ? supplierCalcPanel : '') + '</div>';
 
-    return '<div class="order-row">' +
-      productCell +
-      '<div><label>จำนวน</label><div class="flex"><button class="btn-qty" onclick="updateItem(' + item.id + ',\'qty\',Math.max(1,' + qty + '-1))">−</button>' +
+    const qtyCell = '<div><label>จำนวน</label><div class="flex"><button class="btn-qty" onclick="updateItem(' + item.id + ',\'qty\',Math.max(1,' + qty + '-1))">−</button>' +
         '<input type="number" value="' + qty + '" min="1" onchange="updateItem(' + item.id + ',\'qty\',parseFloat(this.value)||1)" style="text-align:center;width:70px;font-size:16px;font-weight:600;">' +
         '<button class="btn-qty" onclick="updateItem(' + item.id + ',\'qty\',' + qty + '+1)">+</button></div>' +
-        '<div class="text-muted" style="margin-top:4px;">' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit||'เส้น')) + '</div></div>' +
-      '<div><label>ราคา/หน่วย</label>' +
+        '<div class="text-muted" style="margin-top:4px;">' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit||'เส้น')) + '</div></div>';
+
+    const priceCell = '<div><label>ราคา/หน่วย</label>' +
         ((p || isCustomRow) ? '<input type="number" class="editable-price-input" value="' + (unitPrice || '') + '" min="0" step="1" placeholder="0" oninput="updateCustomPrice(' + item.id + ', this.value)" onblur="finishCustomPriceEdit(' + item.id + ')">' +
              '<div class="editable-price-note">' + (isCustomRow ? 'สินค้าโป๊ว' : (isCustomPrice ? 'แก้เองจาก ฿' + p.price.toLocaleString() : 'จาก Sheet')) + '</div>' + deliveryBreakdown :
              '<div style="font-family:var(--mono);font-size:15px;font-weight:600;padding:9px 0;">—</div>') +
-      '</div>' +
-      '<div><label>รวม</label><div id="row-total-' + item.id + '" class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">' + (displaySubtotal ? '฿' + displaySubtotal.toLocaleString() : '—') + '</div></div>' +
-      '<div><label>&nbsp;</label><button class="btn-icon" onclick="removeOrderRow(' + item.id + ')" title="ลบ">✕</button></div>' +
+      '</div>';
+
+    const totalCell = '<div><label>รวม</label><div id="row-total-' + item.id + '" class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">' + (displaySubtotal ? '฿' + displaySubtotal.toLocaleString() : '—') + '</div></div>';
+    const removeCell = '<div><label>&nbsp;</label><button class="btn-icon" onclick="removeOrderRow(' + item.id + ')" title="ลบ">✕</button></div>';
+
+    if (item.useSupplierCalc) {
+      return '<div class="order-row order-row-with-calc-v2">' +
+        '<div class="order-row-left-workspace">' +
+          '<div class="product-main-panel">' + productCell + '</div>' +
+          '<div class="order-row-price-grid">' + qtyCell + priceCell + totalCell + removeCell + '</div>' +
+        '</div>' +
+        '<div class="supplier-calc-side">' + supplierCalcPanel + '</div>' +
+      '</div>';
+    }
+
+    return '<div class="order-row">' +
+      '<div class="product-main-panel">' + productCell + '</div>' +
+      qtyCell + priceCell + totalCell + removeCell +
     '</div>';
   }).join('');
   updateSummary();
@@ -2506,7 +2837,7 @@ function quickSearch(query) {
 function quickAddProduct(sku) {
   const existing = orderItems.find(i => i.sku === sku);
   if (existing) { existing.qty += 1; showToast('✓ เพิ่มจำนวน +1'); }
-  else { orderItems.push({ id: Date.now(), sku, qty: 1, customPrice: null, customProduct: false, weightOverride: null, supplierName: '', showSupplier: false, showWeight: false }); showToast('✓ เพิ่มสินค้าแล้ว'); }
+  else { orderItems.push({ id: Date.now(), sku, qty: 1, customPrice: null, customProduct: false, weightOverride: null, supplierName: '', showSupplier: false, showWeight: false, supplierCostMode: 'kg', supplierCostKg: null, supplierCostUnit: null, manualSellPrice: null, useSupplierCalc: false }); showToast('✓ เพิ่มสินค้าแล้ว'); }
   document.getElementById('quick-search').value = '';
   document.getElementById('quick-search-results').innerHTML = '';
   renderOrderItems(); updateTotalWeight(); loadStaff();
@@ -3377,7 +3708,14 @@ function loadQuotePayloadIntoForm(payload) {
     weightOverride: it.weightOverride ?? null,
     supplierName: it.supplierName || '',
     showSupplier: !!it.showSupplier,
-    showWeight: !!it.showWeight
+    showWeight: !!it.showWeight,
+    supplierCostMode: it.supplierCostMode || 'kg',
+    supplierCostKg: it.supplierCostKg ?? null,
+    supplierCostUnit: it.supplierCostUnit ?? null,
+    targetMargin: it.targetMargin ?? it.supplierTargetMargin ?? 5,
+    supplierEstimatedCostPerUnit: it.supplierEstimatedCostPerUnit ?? null,
+    supplierEstimatedTotalCost: it.supplierEstimatedTotalCost ?? null,
+    supplierEstimatedProfit: it.supplierEstimatedProfit ?? null
   }));
 
   const l = payload.logistics || {};
@@ -3434,6 +3772,7 @@ function loadQuotePayloadIntoForm(payload) {
 // Extra fields are backward-compatible for Apps Script: old doPost handlers should ignore
 // unknown fields, but Quote Log columns/scripts must be expanded if you want to store them.
 
+// v50 UX: Supplier calculator is hidden by default and rendered side-by-side only when enabled per item.
 loadFromSheets();
 </script>
 <!-- Hidden PO template for PDF generation -->
