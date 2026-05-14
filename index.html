@@ -508,6 +508,17 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 }
 .pl-search input { flex: 1; }
 
+
+/* ═══════════ QUOTE RECALL TAB ═══════════ */
+.quote-toolbar { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
+.quote-toolbar input { flex:1; }
+.quote-card { border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px; background:#fff; display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; }
+.quote-card-title { font-family:var(--mono); font-weight:700; color:var(--navy); }
+.quote-card-meta { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.6; }
+.quote-card-total { font-family:var(--mono); font-size:16px; font-weight:700; color:var(--red); text-align:right; }
+.quote-card-actions { display:flex; gap:6px; justify-content:flex-end; margin-top:8px; }
+.quote-pill { display:inline-block; font-size:11px; padding:2px 7px; border-radius:999px; background:var(--mid); color:var(--muted); margin-right:4px; }
+
 /* ═══════════ LOADING/ERROR ═══════════ */
 .state-box {
   display: flex; flex-direction: column; align-items: center;
@@ -544,6 +555,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
   <div class="tabs">
     <button class="tab active" onclick="switchTab('calculator')">🧮 คำนวณราคา</button>
     <button class="tab" onclick="switchTab('pricelist')">📋 รายการราคา</button>
+    <button class="tab" onclick="switchTab('quotes')">🧾 รายการใบเสนอราคา</button>
     <button class="tab" onclick="switchTab('products')">📦 ฐานข้อมูลสินค้า</button>
     <button class="tab" onclick="switchTab('import')">📥 นำเข้าข้อมูล</button>
   </div>
@@ -960,6 +972,27 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
   <div id="pl-content">
     <div class="state-box"><div class="spinner"></div><p>กำลังโหลดราคา...</p></div>
   </div>
+</div>
+
+
+<!-- ════════════ TAB: QUOTE RECALL ════════════ -->
+<div id="tab-quotes" class="tab-content">
+<div class="container">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">🧾 รายการใบเสนอราคา / Recall</span>
+      <button class="btn btn-ghost" onclick="loadQuoteHistory()">↻ โหลดรายการล่าสุด</button>
+    </div>
+    <div class="panel-body">
+      <div class="section-internal">แนะนำให้ใช้ “คัดลอกเป็นใบใหม่” เพื่อรักษาประวัติใบเสนอราคาเดิม ไม่เขียนทับเลขเดิม</div>
+      <div class="quote-toolbar">
+        <input type="text" id="quote-search" placeholder="ค้นหาเลขที่ใบเสนอราคา / ชื่อลูกค้า / เบอร์โทร" onkeydown="if(event.key==='Enter')loadQuoteHistory()">
+        <button class="btn btn-primary" onclick="loadQuoteHistory()">ค้นหา</button>
+      </div>
+      <div id="quote-history-list"><div class="empty-state"><div class="icon">🧾</div><p>กด “โหลดรายการล่าสุด” เพื่อเรียกใบเสนอราคาที่เคยบันทึก</p></div></div>
+    </div>
+  </div>
+</div>
 </div>
 
 <!-- ════════════ TAB: PRODUCTS ════════════ -->
@@ -1650,7 +1683,7 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
       const baseDisplayUnitPrice = Math.round(unitPrice);
       line = {
         id: item.id, product: null, isCustom: true, name, qty, unit,
-        unitPrice, subtotal, weight, weightPerUnit, defaultWeightPerUnit: parseFloat(item.customWeight) || 0, weightOverride: item.weightOverride || null, supplierName: getItemSupplier(item), showSupplier: !!item.showSupplier, pricekg: '',
+        unitPrice, subtotal, weight, weightPerUnit, defaultWeightPerUnit: parseFloat(item.customWeight) || 0, weightOverride: item.weightOverride || null, supplierName: getItemSupplier(item), showSupplier: !!item.showSupplier, showWeight: !!item.showWeight, pricekg: '',
         baseUnitPrice: unitPrice,
         baseDisplayUnitPrice,
         baseLineTotal: baseDisplayUnitPrice * qty,
@@ -1673,7 +1706,7 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
       const baseDisplayUnitPrice = Math.round(unitPrice);
       line = {
         id: item.id, product: p, isCustom: false, name: p.name, qty, unit: p.unit,
-        unitPrice, subtotal, weight, weightPerUnit, defaultWeightPerUnit: p.weight ? (parseFloat(p.weight) || 0) : 0, weightOverride: item.weightOverride || null, supplierName: getItemSupplier(item), showSupplier: !!item.showSupplier, pricekg: p.pricekg,
+        unitPrice, subtotal, weight, weightPerUnit, defaultWeightPerUnit: p.weight ? (parseFloat(p.weight) || 0) : 0, weightOverride: item.weightOverride || null, supplierName: getItemSupplier(item), showSupplier: !!item.showSupplier, showWeight: !!item.showWeight, pricekg: p.pricekg,
         baseUnitPrice: unitPrice,
         baseDisplayUnitPrice,
         baseLineTotal: baseDisplayUnitPrice * qty,
@@ -2158,13 +2191,14 @@ async function loadFromSheets() {
 // ════════════════════════════════════════
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t, i) => {
-    const tabs = ['calculator','pricelist','products','import'];
+    const tabs = ['calculator','pricelist','quotes','products','import'];
     t.classList.toggle('active', tabs[i] === tab);
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
   if (tab === 'products') renderProductTable();
   if (tab === 'pricelist') { buildPLChips(); plFilter(); }
+  if (tab === 'quotes') loadQuoteHistory();
 }
 
 // ════════════════════════════════════════
@@ -2270,7 +2304,7 @@ function buildPLCard(p) {
 // ════════════════════════════════════════
 function addOrderRow() {
   const id = Date.now();
-  orderItems.push({ id, sku: '', qty: 1, customPrice: null, customProduct: false, weightOverride: null, supplierName: '', showSupplier: false });
+  orderItems.push({ id, sku: '', qty: 1, customPrice: null, customProduct: false, weightOverride: null, supplierName: '', showSupplier: false, showWeight: false });
   renderOrderItems();
 }
 function addCustomOrderRow() {
@@ -2286,7 +2320,8 @@ function addCustomOrderRow() {
     customUnit: 'เส้น',
     weightOverride: null,
     supplierName: '',
-    showSupplier: false
+    showSupplier: false,
+    showWeight: false
   });
   renderOrderItems();
 }
@@ -2356,7 +2391,8 @@ function renderOrderItems() {
     const opsFields = '<div class="line-ops-grid">' +
       '<div><label>Supplier (ไม่แสดงเป็นค่าเริ่มต้น)</label><input type="text" value="' + supplierName + '" placeholder="เช่น โรง A / Supplier B" oninput="updateItemSoft(' + item.id + ',\'supplierName\',this.value)"></div>' +
       '<div><label>น้ำหนัก/หน่วย override (kg)</label><input type="number" min="0" step="0.01" value="' + (item.weightOverride ?? '') + '" placeholder="เดิม ' + (defaultWeightPerUnit ? defaultWeightPerUnit.toFixed(2) : '0.00') + '" oninput="updateItemSoft(' + item.id + ',\'weightOverride\',this.value)"></div>' +
-      '<div style="grid-column:1 / -1;"><label class="checkbox-label" style="font-size:11px;margin:0;color:var(--int);"><input type="checkbox" ' + (item.showSupplier ? 'checked' : '') + ' onchange="updateItemSoft(' + item.id + ',\'showSupplier\',this.checked)">แสดง Supplier รายการนี้ในใบเสนอราคา</label>' +
+      '<div style="grid-column:1 / -1;"><label class="checkbox-label" style="font-size:11px;margin:0 0 4px 0;color:var(--int);"><input type="checkbox" ' + (item.showSupplier ? 'checked' : '') + ' onchange="updateItemSoft(' + item.id + ',\'showSupplier\',this.checked)">แสดง Supplier รายการนี้ในใบเสนอราคา</label>' +
+      '<label class="checkbox-label" style="font-size:11px;margin:0;color:var(--int);"><input type="checkbox" ' + (item.showWeight ? 'checked' : '') + ' onchange="updateItemSoft(' + item.id + ',\'showWeight\',this.checked)">แสดงน้ำหนักรายการนี้ในใบเสนอราคา</label>' +
       '<div class="line-ops-note">น้ำหนัก override มีผลกับการเลือกรถ/ค่าส่ง/การเฉลี่ยค่าส่งทันที แต่ไม่แก้ฐานข้อมูลสินค้า</div></div>' +
     '</div>';
     const wBadge = p?.weight ? '<span class="weight-badge">🔒 ' + p.weight + ' kg/เส้น' + (p.pricekg?'  ·  ฿'+p.pricekg+'/kg':'') + '</span>' : '';
@@ -2462,7 +2498,7 @@ function quickSearch(query) {
 function quickAddProduct(sku) {
   const existing = orderItems.find(i => i.sku === sku);
   if (existing) { existing.qty += 1; showToast('✓ เพิ่มจำนวน +1'); }
-  else { orderItems.push({ id: Date.now(), sku, qty: 1, customPrice: null, customProduct: false }); showToast('✓ เพิ่มสินค้าแล้ว'); }
+  else { orderItems.push({ id: Date.now(), sku, qty: 1, customPrice: null, customProduct: false, weightOverride: null, supplierName: '', showSupplier: false, showWeight: false }); showToast('✓ เพิ่มสินค้าแล้ว'); }
   document.getElementById('quick-search').value = '';
   document.getElementById('quick-search-results').innerHTML = '';
   renderOrderItems(); updateTotalWeight(); loadStaff();
@@ -2597,7 +2633,8 @@ function generateQuote() {
 
   const lines = displayLines.map(l => {
     const itemNameForQuote = l.name + ((l.showSupplier && l.supplierName) ? ' - ' + l.supplierName : '');
-    return '  ▸ ' + itemNameForQuote + '\n     ' + l.qty + ' ' + l.unit + ' × ฿' + l.unitPrice.toLocaleString() + ' = ฿' + l.subtotal.toLocaleString();
+    const weightText = (l.showWeight && l.weight) ? '\n     น้ำหนักรวม ' + Number(l.weight).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg' : '';
+    return '  ▸ ' + itemNameForQuote + '\n     ' + l.qty + ' ' + l.unit + ' × ฿' + l.unitPrice.toLocaleString() + ' = ฿' + l.subtotal.toLocaleString() + weightText;
   });
 
   let payLine = '';
@@ -2942,6 +2979,7 @@ async function generatePO() {
   const companyName  = document.getElementById('company-name')?.value || '';
   const companyAddr  = document.getElementById('company-address')?.value || '';
   const companyTaxID = document.getElementById('company-taxid')?.value || '';
+  const notes = (document.getElementById('order-notes')?.value || '').trim();
   const logistics   = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
   const vatRate     = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
   includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, false);
@@ -2985,13 +3023,16 @@ async function generatePO() {
   if (type==='transfer') payTerms = 'โอนเงิน';
   else if (months===0) payTerms = 'บัตรเครดิต เงินสด';
   else payTerms = 'ผ่อน ' + months + ' เดือน 0% — เดือนละ ฿' + Math.ceil(grandTotal/months).toLocaleString();
-  const itemRows = lines.map((item, idx) =>
-    '<tr><td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+(idx+1)+'</td>' +
-    '<td style="padding:6px 8px;border-bottom:1px solid #eee;">'+item.name + ((item.showSupplier && item.supplierName) ? ' - ' + escapeHTML(item.supplierName) : '') + '</td>' +
+  const itemRows = lines.map((item, idx) => {
+    const supplierText = (item.showSupplier && item.supplierName) ? ' - ' + escapeHTML(item.supplierName) : '';
+    const weightText = (item.showWeight && item.weight) ? '<div style="font-size:10px;color:#64748B;margin-top:2px;">น้ำหนักรวม ' + Number(item.weight).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg</div>' : '';
+    return '<tr><td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+(idx+1)+'</td>' +
+    '<td style="padding:6px 8px;border-bottom:1px solid #eee;">'+escapeHTML(item.name) + supplierText + weightText + '</td>' +
     '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+item.qty+' '+item.unit+'</td>' +
     '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.unitPrice.toLocaleString('th-TH')+'</td>' +
-    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.subtotal.toLocaleString('th-TH')+'</td></tr>'
-  ).join('');
+    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.subtotal.toLocaleString('th-TH')+'</td></tr>';
+  }).join('');
+  const remarkRow = notes ? '<div style="margin:10px 0 4px 0;padding:8px 10px;background:#FFFBEB;border-left:3px solid #D97706;font-size:12px;line-height:1.5;"><strong>หมายเหตุ:</strong> ' + escapeHTML(notes).replace(/\n/g, '<br>') + '</div>' : '';
   const discountRow = (showPaymentDiscount && comparisonDiscount > 0) ?
     '<tr><td style="padding:4px 12px;text-align:right;color:#16A34A;" colspan="1">ส่วนลด ' + (type === 'transfer' ? 'โอนเงิน' : payTerms) + ' ('+discountPct+'%)</td><td style="padding:4px 12px;text-align:right;color:#16A34A;">-'+comparisonDiscount.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
   const compareRow = (showPaymentDiscount && comparisonDiscount > 0) ?
@@ -3043,7 +3084,7 @@ async function generatePO() {
         '<th style="padding:6px 8px;text-align:center;width:80px;">จำนวน</th>' +
         '<th style="padding:6px 8px;text-align:right;width:90px;">หน่วยละ (฿)</th>' +
         '<th style="padding:6px 8px;text-align:right;width:100px;">จำนวนเงิน (฿)</th></tr></thead>' +
-      '<tbody>'+itemRows+'</tbody></table>' +
+      '<tbody>'+itemRows+'</tbody></table>' + remarkRow +
     '<div style="display:flex;justify-content:flex-end;margin-bottom:24px;">' +
       '<table style="font-size:12px;width:280px;">' +
         cashSubtotalRow + logRow + compareRow + discountRow +
@@ -3108,6 +3149,9 @@ async function generatePO() {
         destinationProvince: document.getElementById('destination-province')?.selectedOptions?.[0]?.textContent || '',
         truckType: document.getElementById('truck-type')?.selectedOptions?.[0]?.textContent || '',
         paymentMethod: payTerms,
+        customerRemark: notes,
+        notes: notes,
+        quotePayload: buildQuoteRecallPayload(poNumber),
         paymentType: type,
         paymentMonths: months,
         totalAmount: grandTotal,
@@ -3150,6 +3194,7 @@ async function generatePO() {
           actualDeliveryTotal: logistics,
           supplierName: l.supplierName || '',
           showSupplier: !!l.showSupplier,
+          showWeight: !!l.showWeight,
           weightPerUnit: l.weightPerUnit || 0,
           defaultWeightPerUnit: l.defaultWeightPerUnit || 0,
           weightOverride: l.weightOverride || '',
@@ -3162,12 +3207,204 @@ async function generatePO() {
   }, 600);
 }
 
+
+// ════════════════════════════════════════
+// QUOTE RECALL / COPY AS NEW
+// ════════════════════════════════════════
+function buildQuoteRecallPayload(originalQuoteNo) {
+  return {
+    version: 'v41_quote_recall_remark_weight_toggle',
+    originalQuoteNo: originalQuoteNo || '',
+    savedAt: new Date().toISOString(),
+    customer: {
+      name: document.getElementById('cust-name')?.value || '',
+      contact: document.getElementById('cust-contact')?.value || '',
+      address: document.getElementById('cust-address')?.value || '',
+      deliveryDate: document.getElementById('delivery-date')?.value || '',
+      shippingMethod: document.getElementById('shipping-method')?.value || 'SteelDeal',
+      isVatInvoice: document.getElementById('vat-invoice-toggle')?.checked || false,
+      companyName: document.getElementById('company-name')?.value || '',
+      companyAddress: document.getElementById('company-address')?.value || '',
+      companyTaxID: document.getElementById('company-taxid')?.value || ''
+    },
+    staff: document.getElementById('staff-select')?.value || '',
+    orderItems: JSON.parse(JSON.stringify(orderItems || [])),
+    logistics: {
+      truckType: document.getElementById('truck-type')?.value || '',
+      destinationProvince: document.getElementById('destination-province')?.value || '',
+      helper: document.getElementById('helper-checkbox')?.checked || false,
+      cost: parseFloat(document.getElementById('logistics-cost')?.value) || 0,
+      manual: parseFloat(document.getElementById('logistics-manual')?.value) || 0,
+      includeDeliveryInProductPrice: document.getElementById('include-delivery-toggle')?.checked || false
+    },
+    payment: JSON.parse(JSON.stringify(selectedPayment || { months:0, fee:0, type:'transfer' })),
+    vatRate: document.getElementById('vat-toggle')?.value || '7',
+    notes: document.getElementById('order-notes')?.value || '',
+    discount: {
+      amount: document.getElementById('discount-amount')?.value || '',
+      type: document.getElementById('discount-type')?.value || 'pct',
+      reason: document.getElementById('discount-reason')?.value || '',
+      thb: salesDiscountThb || 0
+    },
+    poDisplay: {
+      showPaymentDiscount: document.getElementById('po-show-payment-discount')?.checked !== false,
+      compareMonths: document.getElementById('po-discount-compare-months')?.value || '10'
+    }
+  };
+}
+
+function jsonpRequest(params) {
+  return new Promise((resolve, reject) => {
+    const cb = 'sdJsonp_' + Date.now() + '_' + Math.floor(Math.random()*100000);
+    const url = new URL(APPS_SCRIPT_URL);
+    Object.entries(params || {}).forEach(([k,v]) => url.searchParams.set(k, v));
+    url.searchParams.set('callback', cb);
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('Apps Script response timeout'));
+    }, 15000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cb];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cb] = data => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error('Cannot load Apps Script JSONP')); };
+    script.src = url.toString();
+    document.body.appendChild(script);
+  });
+}
+
+async function loadQuoteHistory() {
+  const list = document.getElementById('quote-history-list');
+  if (!list) return;
+  const q = document.getElementById('quote-search')?.value || '';
+  list.innerHTML = '<div class="state-box"><div class="spinner"></div><p>กำลังโหลดใบเสนอราคา...</p></div>';
+  try {
+    const res = await jsonpRequest({ action: 'listQuotes', q: q });
+    if (!res || res.status !== 'success') throw new Error(res?.message || 'โหลดรายการไม่สำเร็จ');
+    renderQuoteHistory(res.quotes || []);
+  } catch(e) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>' + escapeHTML(e.message) + '</p></div>';
+  }
+}
+
+function renderQuoteHistory(quotes) {
+  const list = document.getElementById('quote-history-list');
+  if (!quotes.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">🧾</div><p>ไม่พบใบเสนอราคา</p></div>';
+    return;
+  }
+  list.innerHTML = quotes.map(q => {
+    const hasPayload = !!q.hasPayload;
+    return '<div class="quote-card">' +
+      '<div><div class="quote-card-title">' + escapeHTML(q.quoteNo || '-') + '</div>' +
+      '<div class="quote-card-meta">' +
+        '<span class="quote-pill">' + escapeHTML(q.date || '') + '</span>' +
+        '<span class="quote-pill">ลูกค้า: ' + escapeHTML(q.customer || '-') + '</span>' +
+        '<span class="quote-pill">พนักงาน: ' + escapeHTML(q.staff || '-') + '</span>' +
+        (q.phone ? '<span class="quote-pill">โทร: ' + escapeHTML(q.phone) + '</span>' : '') +
+        (hasPayload ? '<span class="quote-pill" style="color:#16A34A;">โหลดแก้ไขได้</span>' : '<span class="quote-pill" style="color:#B91C1C;">ไม่มี Payload</span>') +
+      '</div></div>' +
+      '<div><div class="quote-card-total">฿' + Number(q.grandTotal || 0).toLocaleString('th-TH') + '</div>' +
+      '<div class="quote-card-actions">' +
+        (q.fileUrl ? '<button class="btn btn-ghost" onclick="window.open(\'' + String(q.fileUrl).replace(/'/g, "\\'") + '\',\'_blank\')">ดูไฟล์</button>' : '') +
+        '<button class="btn btn-primary" ' + (hasPayload ? '' : 'disabled style="opacity:.5;cursor:not-allowed;"') + ' onclick="copyQuoteAsNew(\'' + String(q.quoteNo || '').replace(/'/g, "\\'") + '\')">คัดลอกเป็นใบใหม่</button>' +
+      '</div></div>' +
+    '</div>';
+  }).join('');
+}
+
+async function copyQuoteAsNew(quoteNo) {
+  try {
+    showToast('⏳ กำลังโหลดใบเสนอราคาเดิม...');
+    const res = await jsonpRequest({ action: 'getQuote', quoteNo: quoteNo });
+    if (!res || res.status !== 'success' || !res.payload) throw new Error(res?.message || 'ไม่พบข้อมูลใบเสนอราคา');
+    loadQuotePayloadIntoForm(res.payload);
+    switchTab('calculator');
+    showToast('✓ โหลดเป็นใบใหม่แล้ว — ตรวจราคา/จำนวนก่อนสร้างใบเสนอราคาใหม่');
+  } catch(e) {
+    showToast('⚠️ โหลดใบเสนอราคาไม่สำเร็จ: ' + e.message, 'error');
+  }
+}
+
+function loadQuotePayloadIntoForm(payload) {
+  const c = payload.customer || {};
+  document.getElementById('cust-name').value = c.name || '';
+  document.getElementById('cust-contact').value = c.contact || '';
+  document.getElementById('cust-address').value = c.address || '';
+  document.getElementById('delivery-date').value = c.deliveryDate || '';
+  document.getElementById('shipping-method').value = c.shippingMethod || 'SteelDeal';
+  document.getElementById('vat-invoice-toggle').checked = !!c.isVatInvoice;
+  toggleVatInvoice();
+  document.getElementById('company-name').value = c.companyName || '';
+  document.getElementById('company-address').value = c.companyAddress || '';
+  document.getElementById('company-taxid').value = c.companyTaxID || '';
+
+  if (payload.staff && document.getElementById('staff-select')) document.getElementById('staff-select').value = payload.staff;
+
+  orderItems = (payload.orderItems || []).map((it, idx) => ({
+    id: Date.now() + idx,
+    sku: it.sku || '',
+    qty: parseFloat(it.qty || it.quantity) || 1,
+    customPrice: it.customPrice ?? null,
+    customProduct: !!it.customProduct,
+    customName: it.customName || '',
+    customWeight: it.customWeight ?? null,
+    customUnit: it.customUnit || 'เส้น',
+    weightOverride: it.weightOverride ?? null,
+    supplierName: it.supplierName || '',
+    showSupplier: !!it.showSupplier,
+    showWeight: !!it.showWeight
+  }));
+
+  const l = payload.logistics || {};
+  document.getElementById('truck-type').value = l.truckType || '';
+  document.getElementById('destination-province').value = l.destinationProvince || '';
+  document.getElementById('helper-checkbox').checked = !!l.helper;
+  document.getElementById('logistics-cost').value = l.cost || 0;
+  document.getElementById('logistics-manual').value = l.manual || l.cost || 0;
+  const finalInput = document.getElementById('logistics-final');
+  if (finalInput) finalInput.value = l.cost || 0;
+  document.getElementById('include-delivery-toggle').checked = !!l.includeDeliveryInProductPrice;
+  includeDeliveryInProductPrice = !!l.includeDeliveryInProductPrice;
+
+  selectedPayment = payload.payment || { months:0, fee:0, type:'transfer' };
+  document.querySelectorAll('.payment-card').forEach(card => {
+    const sameType = (card.dataset.type || 'card') === (selectedPayment.type || 'transfer');
+    const sameMonths = (parseInt(card.dataset.months) || 0) === (parseInt(selectedPayment.months) || 0);
+    card.classList.toggle('active', sameType && sameMonths);
+  });
+
+  document.getElementById('vat-toggle').value = String(payload.vatRate ?? '7');
+  document.getElementById('order-notes').value = payload.notes || '';
+
+  const d = payload.discount || {};
+  document.getElementById('discount-amount').value = d.amount || '';
+  document.getElementById('discount-type').value = d.type || 'pct';
+  document.getElementById('discount-reason').value = d.reason || '';
+  salesDiscountThb = Number(d.thb || 0);
+
+  const po = payload.poDisplay || {};
+  const showPay = document.getElementById('po-show-payment-discount');
+  if (showPay) showPay.checked = po.showPaymentDiscount !== false;
+  const cmp = document.getElementById('po-discount-compare-months');
+  if (cmp) cmp.value = po.compareMonths || '10';
+
+  calculateLogistics();
+  renderOrderItems();
+  onDiscountChange();
+  updateSummary();
+  generateQuote();
+}
+
 // ════════════════════════════════════════
 // ARCHITECTURE NOTES — 2026-05-13 UPDATE
 // ════════════════════════════════════════
 // Supplier is stored per order item only and is hidden from customer outputs unless
 // the item-level showSupplier checkbox is checked. No global supplier toggle is used.
-// Weight override is also per order item only: it affects truck recommendation, logistics,
+// Weight/customer-weight display toggle and weight override are also per order item only: it affects truck recommendation, logistics,
 // delivery absorption allocation, internal summary, JPG output payload, and quote log payload.
 // It does NOT modify Google Sheets product master data.
 // Payment pricing now has two stages: base customer cash price -> selected payment line price.
