@@ -665,7 +665,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
           <div class="grid-2">
             <div>
               <label>ประเภทรถ</label>
-              <select id="truck-type" onchange="calculateLogistics()">
+              <select id="truck-type" onchange="onTruckTypeManualChange()">
                 <option value="">-- เลือกรถ --</option>
                 <option value="6wheel">รถ 6 ล้อ (สูงสุด 2 ตัน)</option>
                 <option value="10wheel">รถ 10 ล้อ (สูงสุด 15 ตัน)</option>
@@ -730,7 +730,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
               <input type="checkbox" id="include-delivery-toggle" onchange="toggleIncludeDeliveryInProductPrice()">
               <span>รวมค่าส่งในราคาสินค้า / แสดงค่าส่งเป็นฟรี</span>
             </label>
-            <div class="hint">ระบบจะเฉลี่ยค่าส่งเข้าไปในราคาสินค้าเป็นจำนวนเต็ม และส่วนต่างไม่เกิน 500 บาทจะถือเป็นส่วนลด/ส่วนปรับราคาให้ลูกค้า</div>
+            <div class="hint">ระบบจะเฉลี่ยค่าส่งเข้าไปในราคาสินค้าเป็นจำนวนเต็ม และใช้เกณฑ์ยอมรับส่วนต่างแบบไดนามิก: ไม่เกิน MIN(฿300, 0.5% ของราคาสินค้า)</div>
             <div id="delivery-absorb-warning" class="delivery-absorb-warning"></div>
           </div>
         </div>
@@ -1354,6 +1354,7 @@ const STAFF_CSV_URL  = makeSheetCsvUrl(STAFF_TAB);
 let products      = [];   // { sku, name, price, unit, weight, pricekg, cat, size, thick, len, dist, cont, inclV, i10 }
 let orderItems    = [];   // { id, sku, qty, customPrice, weightOverride, supplierName, showSupplier, customProduct }
 let selectedPayment = { months: 0, fee: 0, type: 'transfer' };
+let userOverrodeTruckType = false; // system suggests truck, but sales can manually override it
 
 // Official SteelDeal payment multipliers.
 // Rule: calculate customer-facing cash subtotal first, then apply multiplier, then VAT.
@@ -1430,14 +1431,9 @@ function buildCustomerPriceBase(logistics = 0, includeDelivery = false) {
   let effectiveIncludeDelivery = !!includeDelivery && logisticsRounded > 0;
   let calc = buildOrderCalcLines(logisticsRounded, effectiveIncludeDelivery);
 
-  // Stateless safety guard:
-  // Never let an invalid absorbed-delivery calculation leak into totals.
-  // If the current order cannot absorb the delivery within the configured tolerance/caps,
-  // fall back to normal separate-delivery math for this calculation only.
-  if (effectiveIncludeDelivery && Math.abs(Math.round(Number(calc.leftoverDiscount || 0))) > DELIVERY_ABSORB_TOLERANCE) {
-    effectiveIncludeDelivery = false;
-    calc = buildOrderCalcLines(logisticsRounded, false);
-  }
+  // Advisor mode: keep the user's delivery-absorption choice intact.
+  // If the absorption creates a larger leftover than usual, we warn the user,
+  // but we do not silently switch back to separate-delivery mode.
 
   const lines = calc.lines.map(l => {
     const qty = Number(l.qty) || 1;
@@ -1485,7 +1481,37 @@ let plShowIncl    = false;
 let sheetProducts = [];   // raw from sheet, for price list tab
 let includeDeliveryInProductPrice = false; // customer-facing presentation mode: fold delivery into product price
 
-const DELIVERY_ABSORB_TOLERANCE = 500;
+// Dynamic commercial tolerance for delivery absorption.
+// Protects thin-margin steel orders: allowed variance = MIN(฿300, 0.5% of goods subtotal).
+const DELIVERY_ABSORB_MAX_TOLERANCE = 300;
+const DELIVERY_ABSORB_TOLERANCE_RATE = 0.005;
+const DELIVERY_ABSORB_SOFT_BUFFER = 300; // advisory range only; never blocks manual override
+
+function roundMoney(num) {
+  return Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+}
+
+function getDeliveryAbsorbTolerance() {
+  // Do not call buildOrderCalcLines() here, because buildOrderCalcLines also uses tolerance.
+  // Calculate base goods subtotal directly from current order state.
+  let subtotal = 0;
+  for (const item of orderItems) {
+    const qty = parseFloat(item.qty) || 0;
+    if (!qty) continue;
+    if (item.customProduct) {
+      subtotal += (getItemPrice(item, null) || 0) * qty;
+    } else {
+      const p = products.find(x => x.sku === item.sku);
+      if (p) subtotal += (getItemPrice(item, p) || 0) * qty;
+    }
+  }
+  return Math.max(0, Math.min(DELIVERY_ABSORB_MAX_TOLERANCE, subtotal * DELIVERY_ABSORB_TOLERANCE_RATE));
+}
+
+function formatToleranceValue(value) {
+  const n = roundMoney(value);
+  return n.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
 // Delivery absorption tuning
 // Hybrid allocation makes freight feel more natural than pure weight or pure product value.
 // 70% follows product value, 30% follows weight.
@@ -1500,7 +1526,7 @@ function getDeliveryAbsorptionLeftoverForAmount(amount) {
   return Math.abs(Math.round(Number(calc.leftoverDiscount || 0)));
 }
 
-function findCleanDeliveryRecommendations(currentAmount, maxLeftover = DELIVERY_ABSORB_TOLERANCE, searchLimit = 50000) {
+function findCleanDeliveryRecommendations(currentAmount, maxLeftover = getDeliveryAbsorbTolerance(), searchLimit = 50000) {
   // Find useful delivery recommendations around the user's current input.
   // Important: do NOT scan from 0, otherwise the system may recommend silly values
   // such as ฿100 just because they technically pass the rounding test.
@@ -1542,12 +1568,15 @@ function findCleanDeliveryRecommendations(currentAmount, maxLeftover = DELIVERY_
   return { lower, higher, nearest };
 }
 
-function showDeliveryAbsorbWarning(currentAmount, leftover) {
+function showDeliveryAbsorbWarning(currentAmount, leftover, mode = 'hard') {
   const box = document.getElementById('delivery-absorb-warning');
   if (!box) return;
 
   const current = Math.round(Number(currentAmount) || 0);
-  const rec = findCleanDeliveryRecommendations(current, DELIVERY_ABSORB_TOLERANCE, 50000);
+  const leftoverRounded = Math.abs(Math.round(Number(leftover) || 0));
+  const tolerance = getDeliveryAbsorbTolerance();
+  const overNormalTolerance = Math.max(0, leftoverRounded - tolerance);
+  const rec = findCleanDeliveryRecommendations(current, tolerance, 50000);
   const buttons = [];
   const seen = new Set();
 
@@ -1557,26 +1586,31 @@ function showDeliveryAbsorbWarning(currentAmount, leftover) {
     buttons.push('<button type="button" onclick="applyRecommendedDelivery(' + amount + ')">' + label + ' ฿' + amount.toLocaleString('th-TH') + '</button>');
   }
 
-  // Operational guardrail: show only useful recommendations.
-  // Higher suggestions can be mathematically valid but confusing in real work, so only show them
-  // when they are very close to the current amount.
   addSuggestion('แนะนำใกล้สุด:', rec.nearest);
   if (rec.lower != null && rec.lower !== rec.nearest) addSuggestion('ลดลงเป็น:', rec.lower);
   if (rec.higher != null && rec.higher !== rec.nearest && rec.higher <= current * 1.10 && (rec.higher - current) <= 3000) {
     addSuggestion('เพิ่มเป็น:', rec.higher);
   }
 
-  box.innerHTML =
-    '<strong>ไม่สามารถรวมค่าขนส่งในราคาสินค้าได้</strong><br>' +
-    'เนื่องจากส่วนต่างจากการปัดเศษเกินเกณฑ์ที่รับได้ ฿' + DELIVERY_ABSORB_TOLERANCE.toLocaleString('th-TH') + ' (ส่วนต่างปัจจุบัน ฿' + Math.round(leftover).toLocaleString('th-TH') + ')<br>' +
-    'กรุณาปรับค่าขนส่ง หรือแยกค่าขนส่งออกจากรายการสินค้า<br>' +
-    '<span style="color:#92400E;">ระบบจำกัดการดันราคาต่อสินค้าไม่เกิน 5% หรือ ฿25/หน่วย เพื่อไม่ให้ราคาสินค้าบิดเบี้ยวเกินจริง</span>' +
-    (buttons.length
-      ? '<div style="margin-top:8px;">แนะนำค่าขนส่งใกล้เคียงที่ระบบรับได้:<br>' + buttons.join('') + '</div>'
-      : '<div style="margin-top:8px;color:#92400E;">ยังไม่พบค่าขนส่งที่ลงตัวในช่วงที่ระบบตรวจสอบ — แนะนำให้แยกค่าขนส่งออกจากรายการสินค้า</div>');
+  const soft = mode === 'soft';
+  box.style.background = soft ? '#FFFBEB' : '#FEF2F2';
+  box.style.borderColor = soft ? '#FCD34D' : '#FECACA';
+  box.style.color = soft ? '#92400E' : '#B91C1C';
+
+  box.innerHTML = soft
+    ? '<strong>รวมค่าขนส่งได้ — มีส่วนต่างจากการปัดเศษเล็กน้อย</strong><br>' +
+      'ระบบจะเคารพค่าขนส่งที่คุณใส่ และถือว่าส่วนต่างประมาณ ฿' + overNormalTolerance.toLocaleString('th-TH') + ' เป็นส่วนลด/ส่วนปรับราคาเชิงพาณิชย์<br>' +
+      '<span>ส่วนต่างรวมจากการกระจายค่าส่ง: ฿' + leftoverRounded.toLocaleString('th-TH') + ' / เกณฑ์ปกติ ฿' + formatToleranceValue(tolerance) + '</span>'
+    : '<strong>รวมค่าขนส่งได้ แต่ส่วนต่างสูงกว่าปกติ</strong><br>' +
+      'ระบบจะไม่ล็อกการทำงาน แต่ควรตรวจสอบ margin ก่อนส่งใบเสนอราคา<br>' +
+      'ส่วนต่างรวมจากการกระจายค่าส่ง: ฿' + leftoverRounded.toLocaleString('th-TH') + ' / เกณฑ์ปกติ ฿' + formatToleranceValue(tolerance) + '<br>' +
+      '<span style="color:#92400E;">ระบบจำกัดการดันราคาต่อสินค้าไม่เกิน 5% หรือ ฿25/หน่วย เพื่อไม่ให้ราคาสินค้าบิดเบี้ยวเกินจริง</span>' +
+      (buttons.length
+        ? '<div style="margin-top:8px;">ค่าขนส่งใกล้เคียงที่ลงตัวกว่า:<br>' + buttons.join('') + '</div>'
+        : '<div style="margin-top:8px;color:#92400E;">ยังไม่พบค่าขนส่งที่ลงตัวกว่าในช่วงที่ระบบตรวจสอบ</div>');
+
   box.style.display = 'block';
 }
-
 function hideDeliveryAbsorbWarning() {
   const box = document.getElementById('delivery-absorb-warning');
   if (box) {
@@ -1597,23 +1631,24 @@ function getEffectiveDeliveryAbsorption(logistics = 0, showNotice = false) {
   }
 
   const leftover = getDeliveryAbsorptionLeftoverForAmount(amount);
-  const valid = leftover <= DELIVERY_ABSORB_TOLERANCE;
+  const tolerance = getDeliveryAbsorbTolerance();
+  const normal = leftover <= tolerance;
+  const softOverride = !normal && leftover <= (tolerance + DELIVERY_ABSORB_SOFT_BUFFER);
 
-  if (!valid) {
-    if (toggle) toggle.checked = false;
-    includeDeliveryInProductPrice = false;
-    if (showNotice) {
-      showDeliveryAbsorbWarning(amount, leftover);
-      showToast('⚠️ ไม่สามารถรวมค่าขนส่งได้ กรุณาปรับค่าขนส่งหรือแยกค่าส่ง', 'error');
-    }
-    return false;
+  // Manual override architecture:
+  // If the user chooses to absorb delivery, respect that choice.
+  // The system advises with warning text; it should not auto-uncheck or force separate delivery.
+  includeDeliveryInProductPrice = true;
+
+  if (normal) {
+    hideDeliveryAbsorbWarning();
+  } else if (showNotice) {
+    showDeliveryAbsorbWarning(amount, leftover, softOverride ? 'soft' : 'hard');
+    if (!softOverride) showToast('⚠️ รวมค่าส่งได้ แต่ส่วนต่างสูงกว่าปกติ กรุณาตรวจ margin', 'error');
   }
 
-  includeDeliveryInProductPrice = true;
-  hideDeliveryAbsorbWarning();
   return true;
 }
-
 function applyRecommendedDelivery(amount) {
   const rounded = Math.max(0, Math.round(Number(amount) || 0));
   const finalInput = document.getElementById('logistics-final');
@@ -1804,7 +1839,7 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
 
         if (!bestLine || bestDelta === 0 || bestDiff >= currentDiff) break;
         bestLine._unitIncrement = Math.max(0, (Number(bestLine._unitIncrement) || 0) + bestDelta);
-        if (bestDiff <= DELIVERY_ABSORB_TOLERANCE) break;
+        if (bestDiff <= Math.min(DELIVERY_ABSORB_MAX_TOLERANCE, subtotalGoods * DELIVERY_ABSORB_TOLERANCE_RATE)) break;
       }
     }
 
@@ -2671,6 +2706,18 @@ function copyCustomerInfoTemplate() {
 // ════════════════════════════════════════
 // LOGISTICS
 // ════════════════════════════════════════
+function onTruckTypeManualChange() {
+  const sel = document.getElementById('truck-type');
+  userOverrodeTruckType = !!(sel && sel.value);
+  calculateLogistics();
+}
+
+function resetTruckRecommendation() {
+  userOverrodeTruckType = false;
+  updateTotalWeight();
+  calculateLogistics();
+}
+
 function recommendTruck(wt) {
   if (wt <= 2) return '6wheel';
   if (wt <= 11) return '10wheel-crane';
@@ -2693,11 +2740,11 @@ function updateTotalWeight() {
   const tons = tw / 1000;
   document.getElementById('total-weight-display').textContent = tons.toFixed(2) + ' ตัน';
   const rec = recommendTruck(tons);
-  if (rec && tons > 0) {
+  if (rec && tons > 0 && !userOverrodeTruckType) {
     const sel = document.getElementById('truck-type');
     if (sel.value !== rec) {
       sel.value = rec;
-      showToast('🚚 แนะนำรถ: ' + sel.options[sel.selectedIndex]?.text);
+      showToast('🚚 แนะนำรถ: ' + sel.options[sel.selectedIndex]?.text + ' (แก้เองได้)');
       calculateLogistics();
     }
   }
