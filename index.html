@@ -1404,23 +1404,27 @@ function getEffectiveWeightPerUnit(item, product) {
 }
 
 function getPaymentLinePrice(baseUnitPrice, payment = selectedPayment) {
-  return Math.round((Number(baseUnitPrice) || 0) * getPaymentMultiplier(payment));
+  // One pricing engine rule: customer-facing unit price is finalized here,
+  // rounded to max 2 decimals, then every output uses unit × qty.
+  return roundMoney((Number(baseUnitPrice) || 0) * getPaymentMultiplier(payment));
 }
 
 function buildPaymentDisplayLines(sourceLines, payment = selectedPayment) {
   // Selected payment method is reflected directly in line-item unit prices.
-  // This avoids showing the same unit price for cash and installment quotes.
+  // Source of truth going forward: finalized unit price × quantity = line total.
   return (sourceLines || []).map(line => {
     const qty = Number(line.qty) || 1;
     const baseUnit = Number(line.unitPrice || line.displayUnitPrice || 0);
     const unitPrice = getPaymentLinePrice(baseUnit, payment);
-    const subtotal = unitPrice * qty;
+    const subtotal = roundMoney(unitPrice * qty);
     return {
       ...line,
       cashUnitPrice: baseUnit,
-      cashSubtotal: baseUnit * qty,
+      cashSubtotal: roundMoney(baseUnit * qty),
       unitPrice,
       subtotal,
+      displayUnitPrice: unitPrice,
+      displayLineTotal: subtotal,
       paymentAdjusted: getPaymentMultiplier(payment) !== 1
     };
   });
@@ -1802,8 +1806,10 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
 
       if (targetLine) {
         const qty = Math.max(1, Number(targetLine.qty) || 1);
-        targetLine.displaySubtotal = roundMoney((Number(targetLine.displaySubtotal) || 0) + roundingDiff);
-        targetLine.displayUnitPrice = roundMoney(targetLine.displaySubtotal / qty);
+        const intendedLineTotal = roundMoney((Number(targetLine.displaySubtotal) || 0) + roundingDiff);
+        // Keep quotation/screen/log math consistent: line total must always equal finalized unit × qty.
+        targetLine.displayUnitPrice = roundMoney(intendedLineTotal / qty);
+        targetLine.displaySubtotal = roundMoney(targetLine.displayUnitPrice * qty);
         targetLine.absorbedDelivery = roundMoney(targetLine.displaySubtotal - (Number(targetLine.baseLineTotal) || 0));
       }
     }
@@ -2500,14 +2506,14 @@ function updateSummary() {
 
     const base = buildCustomerPriceBase(logistics, includeDeliveryInProductPrice);
     includeDeliveryInProductPrice = base.effectiveIncludeDelivery;
-    const lines = base.lines;
-    const itemSubtotal = base.itemSubtotal;
-    const beforePaymentSubtotal = base.beforePaymentSubtotal;
+    const lines = buildPaymentDisplayLines(base.lines, selectedPayment);
+    const itemSubtotal = roundMoney(lines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0));
+    const beforePaymentSubtotal = itemSubtotal;
     const totalWeight = base.totalWeight;
 
     const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
     const multiplier = getPaymentMultiplier(selectedPayment);
-    const paymentSubtotalBeforeDiscount = Math.round(beforePaymentSubtotal * multiplier);
+    const paymentSubtotalBeforeDiscount = beforePaymentSubtotal;
     const paymentSubtotal = Math.max(0, paymentSubtotalBeforeDiscount - salesDisc);
     const grandVAT = Math.round(paymentSubtotal * vatRate / 100);
     const grandTotal = paymentSubtotal + grandVAT;
@@ -2551,8 +2557,9 @@ function updateSummary() {
     let base10Val = 0;
     const totalsById = {};
     for (const opt of payDefs) {
-      const m = getPaymentMultiplier(opt);
-      const paymentBase = Math.max(0, Math.round(beforePaymentSubtotal * m) - salesDisc);
+      const optLines = buildPaymentDisplayLines(base.lines, opt);
+      const paymentLineSubtotal = roundMoney(optLines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0));
+      const paymentBase = Math.max(0, paymentLineSubtotal - salesDisc);
       const vatForPayment = Math.round(paymentBase * vatRate / 100);
       const tot = paymentBase + vatForPayment;
       totalsById[opt.id] = tot;
@@ -2990,14 +2997,14 @@ async function generatePO() {
   const months= selectedPayment.months || 0;
   const multiplier = getPaymentMultiplier(selectedPayment);
   const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
-  const cashCompareBase = base.beforePaymentSubtotal;
-
   const selectedBeforeDiscount = beforePaymentSubtotal;
   const paymentSubtotal = Math.max(0, selectedBeforeDiscount - salesDisc);
 
   const showPaymentDiscount = document.getElementById('po-show-payment-discount')?.checked !== false;
   const compareOpt = getPOCompareOption();
-  const compareBeforeDiscount = Math.round(cashCompareBase * compareOpt.multiplier);
+  const comparePayment = { type: compareOpt.type, months: compareOpt.months || 0 };
+  const compareLines = buildPaymentDisplayLines(sourceLines, comparePayment);
+  const compareBeforeDiscount = roundMoney(compareLines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0));
 
   // Customer-facing source of truth:
   // 1) item rows are rounded cash prices, including delivery if the toggle is on
@@ -3023,8 +3030,8 @@ async function generatePO() {
     return '<tr><td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+(idx+1)+'</td>' +
     '<td style="padding:6px 8px;border-bottom:1px solid #eee;">'+escapeHTML(item.name) + supplierText + weightText + '</td>' +
     '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+item.qty+' '+item.unit+'</td>' +
-    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.unitPrice.toLocaleString('th-TH')+'</td>' +
-    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.subtotal.toLocaleString('th-TH')+'</td></tr>';
+    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.unitPrice.toLocaleString('th-TH', { maximumFractionDigits: 2 })+'</td>' +
+    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.subtotal.toLocaleString('th-TH', { maximumFractionDigits: 2 })+'</td></tr>';
   }).join('');
   const remarkRow = notes ? '<div style="margin:10px 0 4px 0;padding:8px 10px;background:#FFFBEB;border-left:3px solid #D97706;font-size:12px;line-height:1.5;"><strong>หมายเหตุ:</strong> ' + escapeHTML(notes).replace(/\n/g, '<br>') + '</div>' : '';
   const discountRow = (showPaymentDiscount && comparisonDiscount > 0) ?
