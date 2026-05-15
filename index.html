@@ -1656,6 +1656,112 @@ function buildCustomerPriceBase(logistics = 0, includeDelivery = false) {
   return { ...calc, lines, itemSubtotal, absorbedDeliveryTotal, leftoverDiscount, beforePaymentSubtotal, effectiveIncludeDelivery };
 }
 
+
+function getSeparateDeliveryAmount(base, logistics = 0) {
+  // Freight must be included exactly once:
+  // - If delivery is absorbed, it is already inside item display prices.
+  // - If delivery is not absorbed, it must be added as a separate line before VAT.
+  return (base && base.effectiveIncludeDelivery)
+    ? 0
+    : Math.max(0, Math.round(Number(logistics) || 0));
+}
+
+function getLineSubtotal(lines) {
+  return roundMoney((lines || []).reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0));
+}
+
+function getBeforeVatSubtotal(lines, base, logistics, discountThb = 0) {
+  const productSubtotal = getLineSubtotal(lines);
+  const separateDelivery = getSeparateDeliveryAmount(base, logistics);
+  return Math.max(0, roundMoney(productSubtotal + separateDelivery - (Number(discountThb) || 0)));
+}
+
+function validatePricingIntegrity(context, lines, base, logistics, vatRate, discountThb, grandTotal) {
+  // Last-mile guardrail: totals must equal visible product rows + visible separate freight - discount + VAT.
+  // This prevents the exact business-risk bug where separate delivery was shown but not included in the total.
+  try {
+    const productSubtotal = getLineSubtotal(lines);
+    const separateDelivery = getSeparateDeliveryAmount(base, logistics);
+    const beforeVat = Math.max(0, roundMoney(productSubtotal + separateDelivery - (Number(discountThb) || 0)));
+    const expectedVat = Math.round(beforeVat * (Number(vatRate) || 0) / 100);
+    const expectedGrand = beforeVat + expectedVat;
+    const diff = Math.abs(Math.round(expectedGrand) - Math.round(Number(grandTotal) || 0));
+
+    if (diff > 1) {
+      console.error('SteelDeal pricing integrity failed:', {
+        context,
+        productSubtotal,
+        separateDelivery,
+        discountThb,
+        vatRate,
+        expectedVat,
+        expectedGrand,
+        actualGrand: grandTotal,
+        diff,
+        includeDelivery: base && base.effectiveIncludeDelivery
+      });
+      showToast('⚠️ ตรวจพบยอดรวมไม่ตรง กรุณารีเฟรช/สร้างใหม่ก่อนส่งลูกค้า', 'error');
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('Pricing integrity validation failed:', e);
+    return true;
+  }
+}
+
+function buildPricingSnapshot(payment = selectedPayment, options = {}) {
+  // Centralized pricing engine for every customer-facing output.
+  // All screen summary, payment cards, text quote, JPG quote, and logging should consume this object.
+  // Pricing flow:
+  // 1) base/manual item price -> 2) optional delivery absorption -> 3) selected payment line price
+  // 4) separate delivery if not absorbed -> 5) sales discount -> 6) VAT -> 7) grand total.
+  const logistics = Math.max(0, Math.round(parseFloat(document.getElementById('logistics-cost')?.value) || 0));
+  const vatRate = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
+  const discountThb = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
+
+  const requestedIncludeDelivery = getEffectiveDeliveryAbsorption(logistics, !!options.showDeliveryNotice);
+  const base = buildCustomerPriceBase(logistics, requestedIncludeDelivery);
+  includeDeliveryInProductPrice = base.effectiveIncludeDelivery;
+
+  const lines = buildPaymentDisplayLines(base.lines, payment);
+  const itemSubtotal = getLineSubtotal(lines);
+  const separateDelivery = getSeparateDeliveryAmount(base, logistics);
+  const beforeDiscountSubtotal = roundMoney(itemSubtotal + separateDelivery);
+  const beforeVat = Math.max(0, roundMoney(beforeDiscountSubtotal - discountThb));
+  const vatAmt = Math.round(beforeVat * vatRate / 100);
+  const grandTotal = beforeVat + vatAmt;
+
+  const shouldValidate = options.validate !== false;
+  const ok = shouldValidate
+    ? validatePricingIntegrity(options.context || 'pricing-snapshot', lines, base, logistics, vatRate, discountThb, grandTotal)
+    : true;
+
+  return {
+    ok,
+    base,
+    sourceLines: base.lines,
+    lines,
+    logistics,
+    vatRate,
+    discountThb,
+    itemSubtotal,
+    separateDelivery,
+    beforeDiscountSubtotal,
+    paymentSubtotalBeforeDiscount: beforeDiscountSubtotal,
+    beforeVat,
+    vatAmt,
+    grandTotal,
+    payment,
+    paymentKey: getPaymentKey(payment),
+    paymentLabel: getPaymentLabel(payment),
+    multiplier: getPaymentMultiplier(payment),
+    totalWeight: base.totalWeight || 0,
+    effectiveIncludeDelivery: base.effectiveIncludeDelivery
+  };
+}
+
+
 let isUpdating    = false;
 let plActiveCat   = 'all';
 let plShowIncl    = false;
@@ -2851,23 +2957,22 @@ function updateSummary() {
   isUpdating = true;
   try {
     updateTotalWeight();
-    const logistics = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
-    const vatRate   = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
-    includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, false);
+    const pricing = buildPricingSnapshot(selectedPayment, { context: 'summary', validate: true });
+    const logistics = pricing.logistics;
+    const vatRate = pricing.vatRate;
+    const base = pricing.base;
+    const lines = pricing.lines;
+    const itemSubtotal = pricing.itemSubtotal;
+    const separateDelivery = pricing.separateDelivery;
+    const beforePaymentSubtotal = pricing.beforeDiscountSubtotal;
+    const totalWeight = pricing.totalWeight;
 
-    const base = buildCustomerPriceBase(logistics, includeDeliveryInProductPrice);
-    includeDeliveryInProductPrice = base.effectiveIncludeDelivery;
-    const lines = buildPaymentDisplayLines(base.lines, selectedPayment);
-    const itemSubtotal = roundMoney(lines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0));
-    const beforePaymentSubtotal = itemSubtotal;
-    const totalWeight = base.totalWeight;
-
-    const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
-    const multiplier = getPaymentMultiplier(selectedPayment);
-    const paymentSubtotalBeforeDiscount = beforePaymentSubtotal;
-    const paymentSubtotal = Math.max(0, paymentSubtotalBeforeDiscount - salesDisc);
-    const grandVAT = Math.round(paymentSubtotal * vatRate / 100);
-    const grandTotal = paymentSubtotal + grandVAT;
+    const salesDisc = pricing.discountThb;
+    const multiplier = pricing.multiplier;
+    const paymentSubtotalBeforeDiscount = pricing.paymentSubtotalBeforeDiscount;
+    const paymentSubtotal = pricing.beforeVat;
+    const grandVAT = pricing.vatAmt;
+    const grandTotal = pricing.grandTotal;
 
     const summaryEl = document.getElementById('internal-summary');
     if (lines.length === 0) {
@@ -2908,11 +3013,8 @@ function updateSummary() {
     let base10Val = 0;
     const totalsById = {};
     for (const opt of payDefs) {
-      const optLines = buildPaymentDisplayLines(base.lines, opt);
-      const paymentLineSubtotal = roundMoney(optLines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0));
-      const paymentBase = Math.max(0, paymentLineSubtotal - salesDisc);
-      const vatForPayment = Math.round(paymentBase * vatRate / 100);
-      const tot = paymentBase + vatForPayment;
+      const optPricing = buildPricingSnapshot(opt, { context: 'payment-card-' + opt.id, validate: false });
+      const tot = optPricing.grandTotal;
       totalsById[opt.id] = tot;
       if (opt.id === '10') base10Val = tot;
       const te = document.getElementById('pay-' + opt.id);
@@ -2949,27 +3051,26 @@ function generateQuote() {
   const custCtx   = document.getElementById('cust-contact').value;
   const custAddr  = document.getElementById('cust-address').value;
   const notes     = document.getElementById('order-notes').value;
-  const logistics = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
-  const vatRate   = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
-  includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, false);
-
-  const base = buildCustomerPriceBase(logistics, includeDeliveryInProductPrice);
-  includeDeliveryInProductPrice = base.effectiveIncludeDelivery;
-  const sourceDisplayLines = base.lines;
-  const displayLines = buildPaymentDisplayLines(sourceDisplayLines, selectedPayment);
-  const itemSubtotal = displayLines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0);
-  const beforePaymentSubtotal = itemSubtotal;
+  const pricing = buildPricingSnapshot(selectedPayment, { context: 'quote-text', validate: true });
+  const logistics = pricing.logistics;
+  const vatRate = pricing.vatRate;
+  const base = pricing.base;
+  const displayLines = pricing.lines;
+  const itemSubtotal = pricing.itemSubtotal;
+  const separateDelivery = pricing.separateDelivery;
+  const beforePaymentSubtotal = pricing.beforeDiscountSubtotal;
   if (!displayLines.length) { document.getElementById('quote-output').textContent = '⚠️ กรุณาเพิ่มสินค้าก่อน'; return; }
+  if (!pricing.ok) return;
 
-  const multiplier = getPaymentMultiplier(selectedPayment);
+  const multiplier = pricing.multiplier;
   const months = selectedPayment.months || 0;
   const type = selectedPayment.type || 'transfer';
-  const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
+  const salesDisc = pricing.discountThb;
   const discReason = salesDisc > 0 ? (document.getElementById('discount-reason')?.value || '') : '';
-  const paymentSubtotalBeforeDiscount = beforePaymentSubtotal;
-  const paymentSubtotal = Math.max(0, paymentSubtotalBeforeDiscount - salesDisc);
-  const vat = Math.round(paymentSubtotal * vatRate / 100);
-  const grand = paymentSubtotal + vat;
+  const paymentSubtotalBeforeDiscount = pricing.paymentSubtotalBeforeDiscount;
+  const paymentSubtotal = pricing.beforeVat;
+  const vat = pricing.vatAmt;
+  const grand = pricing.grandTotal;
 
   const lines = displayLines.map(l => {
     const itemNameForQuote = l.name + ((l.showSupplier && l.supplierName) ? ' - ' + l.supplierName : '');
@@ -3332,42 +3433,43 @@ async function generatePO() {
   const companyAddr  = document.getElementById('company-address')?.value || '';
   const companyTaxID = document.getElementById('company-taxid')?.value || '';
   const notes = (document.getElementById('order-notes')?.value || '').trim();
-  const logistics   = parseFloat(document.getElementById('logistics-cost')?.value) || 0;
-  const vatRate     = parseFloat(document.getElementById('vat-toggle')?.value) || 0;
-  includeDeliveryInProductPrice = getEffectiveDeliveryAbsorption(logistics, false);
-  const base = buildCustomerPriceBase(logistics, includeDeliveryInProductPrice);
-  includeDeliveryInProductPrice = base.effectiveIncludeDelivery;
-  const sourceLines = base.lines;
-  const lines = buildPaymentDisplayLines(sourceLines, selectedPayment);
-  const itemSubtotal = lines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0);
-  const beforePaymentSubtotal = itemSubtotal;
+  const pricing = buildPricingSnapshot(selectedPayment, { context: 'jpg-quotation', validate: true });
+  const logistics = pricing.logistics;
+  const vatRate = pricing.vatRate;
+  const base = pricing.base;
+  const sourceLines = pricing.sourceLines;
+  const lines = pricing.lines;
+  const itemSubtotal = pricing.itemSubtotal;
+  const separateDelivery = pricing.separateDelivery;
+  const beforePaymentSubtotal = pricing.beforeDiscountSubtotal;
 
   if (!sourceLines.length) { showToast('⚠️ กรุณาเพิ่มสินค้าก่อน','error'); return; }
+  if (!pricing.ok) return;
 
   const type  = selectedPayment.type || 'transfer';
   const months= selectedPayment.months || 0;
-  const multiplier = getPaymentMultiplier(selectedPayment);
-  const salesDisc = (typeof getSalesDiscount === 'function') ? getSalesDiscount() : 0;
+  const multiplier = pricing.multiplier;
+  const salesDisc = pricing.discountThb;
   const selectedBeforeDiscount = beforePaymentSubtotal;
-  const paymentSubtotal = Math.max(0, selectedBeforeDiscount - salesDisc);
+  const paymentSubtotal = pricing.beforeVat;
 
   const showPaymentDiscount = document.getElementById('po-show-payment-discount')?.checked !== false;
   const compareOpt = getPOCompareOption();
   const comparePayment = { type: compareOpt.type, months: compareOpt.months || 0 };
-  const compareLines = buildPaymentDisplayLines(sourceLines, comparePayment);
-  const compareBeforeDiscount = roundMoney(compareLines.reduce((sum, l) => sum + (Number(l.subtotal) || 0), 0));
+  const comparePricing = buildPricingSnapshot(comparePayment, { context: 'jpg-compare-payment', validate: false });
+  const compareBeforeDiscount = comparePricing.beforeDiscountSubtotal;
 
   // Customer-facing source of truth:
-  // 1) item rows are rounded cash prices, including delivery if the toggle is on
-  // 2) payment multiplier applies after the customer-facing subtotal
-  // 3) VAT applies after payment multiplier
+  // 1) item rows are rounded prices for the selected payment method
+  // 2) delivery is either inside item prices or added once as separate freight
+  // 3) sales discount and VAT are applied by the central pricing snapshot
   const renderedLineTotal = itemSubtotal;
   const comparisonDiscount = showPaymentDiscount ? Math.max(0, compareBeforeDiscount - paymentSubtotal) : 0;
   const beforeVatFromVisibleRows = paymentSubtotal;
   const discountPct = compareBeforeDiscount > 0 ? (comparisonDiscount / compareBeforeDiscount * 100).toFixed(1) : '0.0';
 
-  const vatAmt  = Math.round(beforeVatFromVisibleRows * vatRate / 100);
-  const grandTotal = beforeVatFromVisibleRows + vatAmt;
+  const vatAmt = pricing.vatAmt;
+  const grandTotal = pricing.grandTotal;
   const now = new Date();
   const dateStr = now.getDate().toString().padStart(2,'0') + '/' + (now.getMonth()+1).toString().padStart(2,'0') + '/' + (now.getFullYear()+543);
   const poNumber = 'QI' + now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0') + now.getHours().toString().padStart(2,'0') + now.getMinutes().toString().padStart(2,'0');
