@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SteelDeal — ระบบขาย THH</title>
   <!-- PHASE 2 QUOTE ARCHITECTURE UPDATE - Supplier/Weight Override/Payment Line Pricing - 2026-05-13 -->
-  <!-- v47: Final customer-facing prices rounded to nearest whole baht; one pricing engine across screen/JPG/payment/recall -->
+  <!-- v55: Supplier helper adds VAT-inclusive unit price display; pricing engine remains centralized -->
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -382,6 +382,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
   color: #fff;
 }
 
+
 /* V54: Supplier price helper - baht/kg workflow */
 .supplier-calc-toggle-v2 {
   margin-top: 10px;
@@ -455,10 +456,11 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
   .supplier-calc-result-v2 { grid-template-columns: 1fr; }
 }
 
+
 /* V53: supplier calculator true right-side workspace */
 .order-row-with-calc-v2 {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(380px, 430px) !important;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px) !important;
   gap: 16px !important;
   align-items: stretch !important;
 }
@@ -2810,6 +2812,51 @@ function getSupplierFulfillmentCalc(item) {
     suggested3TotalProfit,
     suggested5TotalProfit
   };
+}
+
+function setSupplierCostMode(id, mode) {
+  const item = orderItems.find(i => i.id === id);
+  if (!item) return;
+  item.supplierCostMode = mode;
+  renderOrderItems();
+}
+
+function updateSupplierCalcWeight(id, value) {
+  const item = orderItems.find(i => i.id === id);
+  if (!item) return;
+  const v = parseFloat(value);
+  const clean = (!isNaN(v) && v > 0) ? v : null;
+  item.weightOverride = clean;
+  if (item.customProduct) item.customWeight = clean;
+  updateRowTotal(id);
+  updateSupplierCalcBox(id);
+  updateSummary();
+}
+
+function updateSupplierSellKg(id, value) {
+  const item = orderItems.find(i => i.id === id);
+  if (!item) return;
+  const v = parseFloat(value);
+  item.supplierManualSellKg = (!isNaN(v) && v > 0) ? v : null;
+  if (item.supplierManualSellKg) item.manualSellPrice = null;
+  updateSupplierCalcBox(id);
+}
+
+function updateSupplierSellUnit(id, value) {
+  const item = orderItems.find(i => i.id === id);
+  if (!item) return;
+  const v = parseFloat(value);
+  item.manualSellPrice = (!isNaN(v) && v > 0) ? v : null;
+  if (item.manualSellPrice) item.supplierManualSellKg = null;
+  updateSupplierCalcBox(id);
+}
+
+function clearSupplierManualSell(id) {
+  const item = orderItems.find(i => i.id === id);
+  if (!item) return;
+  item.supplierManualSellKg = null;
+  item.manualSellPrice = null;
+  updateSupplierCalcBox(id);
 }
 
 function renderSupplierFulfillmentCalculator(item) {
