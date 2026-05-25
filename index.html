@@ -2976,6 +2976,17 @@ function updateSupplierCalcBox(id) {
   if (!item || !el) return;
   const c = getSupplierFulfillmentCalc(item);
   el.innerHTML = renderSupplierCalcResultHTML(c);
+
+  // Keep supplier calculator action buttons in sync while user types.
+  // Previously only the result panel refreshed, so buttons could stay disabled
+  // until the whole row was re-rendered.
+  const box = el.closest('.supplier-calc-box');
+  if (box) {
+    const actionButtons = box.querySelectorAll('.supplier-calc-actions .supplier-calc-apply');
+    if (actionButtons[0]) actionButtons[0].disabled = !c.canApply;
+    if (actionButtons[1]) actionButtons[1].disabled = !c.canCalc;
+    if (actionButtons[2]) actionButtons[2].disabled = !c.canCalc;
+  }
 }
 
 function applySupplierManualPrice(id) {
@@ -3384,7 +3395,13 @@ function updateTotalWeight() {
   const tons = tw / 1000;
   document.getElementById('total-weight-display').textContent = tons.toFixed(2) + ' ตัน';
   const rec = recommendTruck(tons);
-  if (rec && tons > 0 && !userOverrodeTruckType) {
+
+  // Avoid re-rendering order rows while the user is typing inside an item field.
+  // calculateLogistics() calls renderOrderItems(), which can steal focus after the first digit.
+  const active = document.activeElement;
+  const typingInOrderItem = !!(active && document.getElementById('order-items')?.contains(active));
+
+  if (rec && tons > 0 && !userOverrodeTruckType && !typingInOrderItem) {
     const sel = document.getElementById('truck-type');
     if (sel.value !== rec) {
       sel.value = rec;
