@@ -1350,7 +1350,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
     </div>
     <div style="margin-bottom:12px;"><label>ชื่อสินค้า *</label><input type="text" id="modal-name" placeholder="ชื่อสินค้าเต็ม"></div>
     <div class="grid-2" style="margin-bottom:12px;">
-      <div><label>ราคา/เส้น (฿) *</label><input type="number" id="modal-price" placeholder="0"></div>
+      <div><label>ราคา/เส้น (฿) *</label><input type="number" id="modal-price" placeholder="0" step="0.01"></div>
       <div><label>🔒 น้ำหนัก/เส้น (kg)</label><input type="number" id="modal-weight" placeholder="0.00" step="0.01"></div>
     </div>
     <div style="margin-bottom:18px;"><label>🔒 ราคา/kg (฿)</label><input type="number" id="modal-pricekg" placeholder="0"></div>
@@ -1450,16 +1450,16 @@ function onDiscountChange() {
   if (discPct > 15) {
     discThb = Math.round(subtotal * 0.15);
     warning.style.display = 'block';
-    warning.textContent = '🚫 ส่วนลดสูงสุดไม่เกิน 15% (' + discThb.toLocaleString() + ' ฿)';
+    warning.textContent = '🚫 ส่วนลดสูงสุดไม่เกิน 15% (' + formatMoney2(discThb) + ' ฿)';
   }
 
   salesDiscountThb = discThb;
-  document.getElementById('discount-thb-display').textContent = '฿' + discThb.toLocaleString();
+  document.getElementById('discount-thb-display').textContent = formatCurrency2(discThb);
 
   // Badge on panel header
   if (discThb > 0) {
     badge.style.display = 'inline';
-    badge.textContent = '-฿' + discThb.toLocaleString();
+    badge.textContent = '-฿' + formatMoney2(discThb);
   } else {
     badge.style.display = 'none';
   }
@@ -1658,7 +1658,7 @@ function getEffectiveWeightPerUnit(item, product) {
 function getPaymentLinePrice(baseUnitPrice, payment = selectedPayment) {
   // One pricing engine rule: customer-facing unit price is finalized here,
   // rounded to nearest whole baht, then every output uses unit × qty.
-  return Math.round((Number(baseUnitPrice) || 0) * getPaymentMultiplier(payment));
+  return roundMoney((Number(baseUnitPrice) || 0) * getPaymentMultiplier(payment));
 }
 
 function buildPaymentDisplayLines(sourceLines, payment = selectedPayment) {
@@ -1758,9 +1758,9 @@ function validatePricingIntegrity(context, lines, base, logistics, vatRate, disc
     const productSubtotal = getLineSubtotal(lines);
     const separateDelivery = getSeparateDeliveryAmount(base, logistics);
     const beforeVat = Math.max(0, roundMoney(productSubtotal + separateDelivery - (Number(discountThb) || 0)));
-    const expectedVat = Math.round(beforeVat * (Number(vatRate) || 0) / 100);
-    const expectedGrand = beforeVat + expectedVat;
-    const diff = Math.abs(Math.round(expectedGrand) - Math.round(Number(grandTotal) || 0));
+    const expectedVat = roundMoney(beforeVat * (Number(vatRate) || 0) / 100);
+    const expectedGrand = roundMoney(beforeVat + expectedVat);
+    const diff = Math.abs(roundMoney(expectedGrand - (Number(grandTotal) || 0)));
 
     if (diff > 1) {
       console.error('SteelDeal pricing integrity failed:', {
@@ -1804,8 +1804,8 @@ function buildPricingSnapshot(payment = selectedPayment, options = {}) {
   const separateDelivery = getSeparateDeliveryAmount(base, logistics);
   const beforeDiscountSubtotal = roundMoney(itemSubtotal + separateDelivery);
   const beforeVat = Math.max(0, roundMoney(beforeDiscountSubtotal - discountThb));
-  const vatAmt = Math.round(beforeVat * vatRate / 100);
-  const grandTotal = beforeVat + vatAmt;
+  const vatAmt = roundMoney(beforeVat * vatRate / 100);
+  const grandTotal = roundMoney(beforeVat + vatAmt);
 
   const shouldValidate = options.validate !== false;
   const ok = shouldValidate
@@ -1851,6 +1851,26 @@ const DELIVERY_ABSORB_SOFT_BUFFER = 300; // advisory range only; never blocks ma
 
 function roundMoney(num) {
   return Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+}
+
+function formatMoney2(value) {
+  const n = Number(value || 0);
+  return n.toLocaleString('th-TH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function formatCurrency2(value) {
+  return '฿' + formatMoney2(value);
+}
+
+function formatWeight2(value) {
+  const n = Number(value || 0);
+  return n.toLocaleString('th-TH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function getDeliveryAbsorbTolerance() {
@@ -2076,7 +2096,7 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
       subtotalGoods += subtotal;
       totalWeight += weight;
       totalQty += qty;
-      const baseDisplayUnitPrice = Math.round(unitPrice);
+      const baseDisplayUnitPrice = roundMoney(unitPrice);
       line = {
         id: item.id, product: null, isCustom: true, name, qty, unit,
         unitPrice, subtotal, weight, weightPerUnit, defaultWeightPerUnit: parseFloat(item.customWeight) || 0, weightOverride: item.weightOverride || null, supplierName: getItemSupplier(item), showSupplier: !!item.showSupplier, showWeight: !!item.showWeight, pricekg: '',
@@ -2099,7 +2119,7 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
       subtotalGoods += subtotal;
       totalWeight += weight;
       totalQty += qty;
-      const baseDisplayUnitPrice = Math.round(unitPrice);
+      const baseDisplayUnitPrice = roundMoney(unitPrice);
       line = {
         id: item.id, product: p, isCustom: false, name: p.name, qty, unit: p.unit,
         unitPrice, subtotal, weight, weightPerUnit, defaultWeightPerUnit: p.weight ? (parseFloat(p.weight) || 0) : 0, weightOverride: item.weightOverride || null, supplierName: getItemSupplier(item), showSupplier: !!item.showSupplier, showWeight: !!item.showWeight, pricekg: p.pricekg,
@@ -2130,7 +2150,7 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
     // - Any rounding difference is reconciled into the highest-value line so product total matches exactly.
     const totalBaseValue = lines.reduce((sum, l) => sum + (Number(l.baseLineTotal) || 0), 0) || subtotalGoods || 0;
     const totalLineWeight = lines.reduce((sum, l) => sum + Math.max(0, Number(l.weight) || 0), 0);
-    const targetDisplayGoodsTotal = Math.round(totalBaseValue + logisticsRounded);
+    const targetDisplayGoodsTotal = roundMoney(totalBaseValue + logisticsRounded);
 
     lines.forEach(line => {
       const qty = Math.max(1, Number(line.qty) || 1);
@@ -2142,12 +2162,12 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
       const hybridShare = (DELIVERY_ALLOCATION_VALUE_WEIGHT * valueShare) + (DELIVERY_ALLOCATION_WEIGHT_WEIGHT * weightShare);
       const targetShare = logisticsRounded * hybridShare;
 
-      const baseDisplayUnitPrice = Number(line.baseDisplayUnitPrice || Math.round(line.unitPrice || 0)) || 0;
+      const baseDisplayUnitPrice = Number(line.baseDisplayUnitPrice || roundMoney(line.unitPrice || 0)) || 0;
       const unitIncrement = qty ? (targetShare / qty) : 0;
 
       line.deliveryShare = roundMoney(targetShare);
-      line.displayUnitPrice = Math.round(baseDisplayUnitPrice + unitIncrement);
-      line.displaySubtotal = line.displayUnitPrice * qty;
+      line.displayUnitPrice = roundMoney(baseDisplayUnitPrice + unitIncrement);
+      line.displaySubtotal = roundMoney(line.displayUnitPrice * qty);
       line.absorbedDelivery = line.displaySubtotal - (Number(line.baseLineTotal) || 0);
       line.leftoverDiscountShare = 0;
     });
@@ -2156,8 +2176,8 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
     // line total = finalized whole-baht unit price × quantity.
     // Exact reconciliation is not always mathematically possible with whole-baht units,
     // so we minimize the remaining difference and keep it visible only as internal warning logic.
-    let currentDisplayGoodsTotal = Math.round(lines.reduce((sum, l) => sum + (Number(l.displaySubtotal) || 0), 0));
-    let roundingDiff = Math.round(targetDisplayGoodsTotal - currentDisplayGoodsTotal);
+    let currentDisplayGoodsTotal = roundMoney(lines.reduce((sum, l) => sum + (Number(l.displaySubtotal) || 0), 0));
+    let roundingDiff = roundMoney(targetDisplayGoodsTotal - currentDisplayGoodsTotal);
 
     if (roundingDiff !== 0 && lines.length) {
       const adjustableLines = lines
@@ -2191,10 +2211,10 @@ function buildOrderCalcLines(logistics = 0, includeDelivery = false) {
       }
     }
 
-    absorbedDeliveryTotal = Math.round(lines.reduce((sum, l) => sum + (Number(l.absorbedDelivery) || 0), 0));
+    absorbedDeliveryTotal = roundMoney(lines.reduce((sum, l) => sum + (Number(l.absorbedDelivery) || 0), 0));
 
-    // Positive/negative here is whole-baht rounding variance after using final customer-facing prices.
-    leftoverDiscount = Math.round(logisticsRounded - absorbedDeliveryTotal);
+    // Positive/negative here is rounding variance after using final customer-facing prices.
+    leftoverDiscount = roundMoney(logisticsRounded - absorbedDeliveryTotal);
   }
   return { lines, subtotalGoods, totalWeight, totalQty, absorbedDeliveryTotal, leftoverDiscount };
 }
@@ -2246,7 +2266,7 @@ function updateRowTotal(id) {
   }
 
   const subtotal = line ? line.displaySubtotal : (unitPrice * qty);
-  rowTotalEl.textContent = subtotal ? '฿' + subtotal.toLocaleString() : '—';
+  rowTotalEl.textContent = subtotal ? '฿' + formatMoney2(subtotal) : '—';
 
   const bd = document.getElementById('delivery-breakdown-' + id);
   if (bd) {
@@ -2254,8 +2274,8 @@ function updateRowTotal(id) {
       const unit = item.customProduct ? (item.customUnit || 'เส้น') : ((products.find(x => x.sku === item.sku)?.unit) || 'เส้น');
       const deliveryPerUnit = qty ? Math.floor(line.absorbedDelivery / qty) : 0;
       bd.style.color = 'var(--green)';
-      bd.innerHTML = 'ค่าส่งเฉลี่ย +฿' + deliveryPerUnit.toLocaleString() + '/' + unit + '<br>' +
-                     'ราคาลูกค้า ฿' + line.displayUnitPrice.toLocaleString() + '/' + unit;
+      bd.innerHTML = 'ค่าส่งเฉลี่ย +฿' + formatMoney2(deliveryPerUnit) + '/' + unit + '<br>' +
+                     'ราคาลูกค้า ฿' + formatMoney2(line.displayUnitPrice) + '/' + unit;
     } else {
       bd.innerHTML = '';
     }
@@ -2630,7 +2650,7 @@ function plFilter() {
   content.innerHTML = ''; content.appendChild(frag);
 }
 
-function fmtN(n) { return (n != null && !isNaN(n)) ? Math.round(n).toLocaleString('th-TH') : '—'; }
+function fmtN(n) { return (n != null && !isNaN(n)) ? formatMoney2(n) : '—'; }
 
 function buildPLCard(p) {
   const el = document.createElement('div'); el.className = 'price-card';
@@ -2773,17 +2793,17 @@ function getSupplierFulfillmentCalc(item) {
 
   const canCalc = qty > 0 && costPerUnit > 0 && weightPerUnit > 0;
   const canApply = canCalc && sellUnit > 0;
-  const suggested3 = canCalc ? Math.ceil(costPerUnit / 0.97) : 0;
-  const suggested5 = canCalc ? Math.ceil(costPerUnit / 0.95) : 0;
-  const totalCost = canCalc ? Math.round(costPerUnit * qty) : 0;
-  const totalSell = canApply ? Math.round(sellUnit * qty) : 0;
-  const profitPerUnit = canApply ? (sellUnit - costPerUnit) : 0;
-  const totalProfit = canApply ? Math.round(profitPerUnit * qty) : 0;
+  const suggested3 = canCalc ? roundMoney(costPerUnit / 0.97) : 0;
+  const suggested5 = canCalc ? roundMoney(costPerUnit / 0.95) : 0;
+  const totalCost = canCalc ? roundMoney(costPerUnit * qty) : 0;
+  const totalSell = canApply ? roundMoney(sellUnit * qty) : 0;
+  const profitPerUnit = canApply ? roundMoney(sellUnit - costPerUnit) : 0;
+  const totalProfit = canApply ? roundMoney(profitPerUnit * qty) : 0;
   const gpPct = totalSell > 0 ? (totalProfit / totalSell * 100) : 0;
   const markupPct = costPerUnit > 0 ? (profitPerUnit / costPerUnit * 100) : 0;
   const marginPerKg = sellKg > 0 && costPerKg > 0 ? (sellKg - costPerKg) : addPerKgSafe;
-  const suggested3TotalProfit = canCalc ? Math.round((suggested3 - costPerUnit) * qty) : 0;
-  const suggested5TotalProfit = canCalc ? Math.round((suggested5 - costPerUnit) * qty) : 0;
+  const suggested3TotalProfit = canCalc ? roundMoney((suggested3 - costPerUnit) * qty) : 0;
+  const suggested5TotalProfit = canCalc ? roundMoney((suggested5 - costPerUnit) * qty) : 0;
 
   return {
     p, qty, unit, weightPerUnit, mode,
@@ -2901,7 +2921,7 @@ function renderSupplierFulfillmentCalculator(item) {
         '<input type="number" min="0" step="0.01" value="' + sellKgValue + '" placeholder="เช่น 34.74" oninput="updateSupplierSellKg(' + id + ',this.value)">' +
         '<div class="supplier-calc-form-note">ถ้ากรอก จะใช้แทนบวกกำไร</div></div>' +
       '<div><label>ราคาขายเอง (฿/' + c.unit + ')</label>' +
-        '<input type="number" min="0" step="1" value="' + sellUnitValue + '" placeholder="เช่น 1577" oninput="updateSupplierSellUnit(' + id + ',this.value)">' +
+        '<input type="number" min="0" step="0.01" value="' + sellUnitValue + '" placeholder="เช่น 1577" oninput="updateSupplierSellUnit(' + id + ',this.value)">' +
         '<div class="supplier-calc-form-note">ใช้เมื่ออยาก lock ราคา/หน่วย</div></div>' +
       '<div><label>หน่วย</label><input type="text" value="' + c.unit + '" disabled></div>' +
     '</div>' +
@@ -2944,8 +2964,8 @@ function renderSupplierCalcResultHTML(c) {
       'ต้นทุน/' + c.unit + ': <strong>฿' + roundMoney(c.costPerUnit).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + '</strong><br>' +
       'กำไร/kg: <strong>฿' + roundMoney(c.marginPerKg).toLocaleString('th-TH', { maximumFractionDigits: 2 }) + '</strong><br>' +
       'ราคาขายรวม VAT: <strong>฿' + sellUnitInclVatText + '/' + c.unit + '</strong> (≈ ฿' + sellUnitInclVatRounded + ')<br>' +
-      'GP โดยประมาณ: <strong>' + c.manualGpPct.toFixed(2) + '%</strong> · กำไรรวม ~฿' + c.manualTotalProfit.toLocaleString() + '<br>' +
-      'แนะนำ GP 3%: ฿' + c.suggested3.toLocaleString() + '/' + c.unit + ' · GP 5%: ฿' + c.suggested5.toLocaleString() + '/' + c.unit +
+      'GP โดยประมาณ: <strong>' + c.manualGpPct.toFixed(2) + '%</strong> · กำไรรวม ~฿' + formatMoney2(c.manualTotalProfit) + '<br>' +
+      'แนะนำ GP 3%: ฿' + formatMoney2(c.suggested3) + '/' + c.unit + ' · GP 5%: ฿' + formatMoney2(c.suggested5) + '/' + c.unit +
     '</div>' +
   '</div>';
 }
@@ -2966,7 +2986,7 @@ function applySupplierManualPrice(id) {
     showToast('⚠️ กรุณาใส่ต้นทุน น้ำหนัก และราคาขาย/กำไรต่อ kg ให้ครบ', 'error');
     return;
   }
-  const finalUnitPrice = Math.round(c.sellUnit);
+  const finalUnitPrice = roundMoney(c.sellUnit);
   item.customPrice = finalUnitPrice;
   item.manualSellPrice = finalUnitPrice;
   item.supplierManualSellKg = roundMoney(c.sellKg);
@@ -2979,7 +2999,7 @@ function applySupplierManualPrice(id) {
   item.supplierEstimatedGpPct = roundMoney(c.manualGpPct);
   item.supplierMarginSource = c.sellSource;
   renderOrderItems();
-  showToast('✓ ใช้ราคา ฿' + finalUnitPrice.toLocaleString() + '/' + c.unit + ' (฿' + c.sellKg.toFixed(2) + '/kg) แล้ว');
+  showToast('✓ ใช้ราคา ฿' + formatMoney2(finalUnitPrice) + '/' + c.unit + ' (฿' + c.sellKg.toFixed(2) + '/kg) แล้ว');
 }
 
 function applySupplierSuggestedPrice(id, marginPct = 5) {
@@ -3004,7 +3024,7 @@ function applySupplierSuggestedPrice(id, marginPct = 5) {
   item.supplierEstimatedGpPct = marginPct;
   item.supplierMarginSource = 'target_gp_suggested';
   renderOrderItems();
-  showToast('✓ ใช้ราคา GP ' + marginPct + '% ฿' + price.toLocaleString() + '/' + c.unit + ' แล้ว');
+  showToast('✓ ใช้ราคา GP ' + marginPct + '% ฿' + formatMoney2(price) + '/' + c.unit + ' แล้ว');
 }
 
 function renderOrderItems() {
@@ -3048,8 +3068,8 @@ function renderOrderItems() {
     const customTotalWt = isCustomRow && customWeight && qty ? '<span class="weight-badge">รวม: ' + (customWeight*qty).toFixed(2) + ' kg' + (weightWasOverridden ? ' · Override' : '') + '</span>' : '';
     const deliveryBreakdown = (includeDeliveryInProductPrice && logistics > 0 && deliveryShare > 0) ?
       '<div id="delivery-breakdown-' + item.id + '" class="editable-price-note" style="color:var(--green);line-height:1.45;margin-top:3px;">' +
-        'ค่าส่งเฉลี่ย +฿' + deliveryPerUnit.toLocaleString() + '/' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit || 'เส้น')) + '<br>' +
-        'ราคาลูกค้า ฿' + displayUnitPrice.toLocaleString() + '/' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit || 'เส้น')) +
+        'ค่าส่งเฉลี่ย +฿' + formatMoney2(deliveryPerUnit) + '/' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit || 'เส้น')) + '<br>' +
+        'ราคาลูกค้า ฿' + formatMoney2(displayUnitPrice) + '/' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit || 'เส้น')) +
       '</div>' : '<div id="delivery-breakdown-' + item.id + '" class="editable-price-note"></div>';
     const supplierCalcPanel = renderSupplierFulfillmentCalculator(item);
 
@@ -3087,12 +3107,12 @@ function renderOrderItems() {
         '<div class="text-muted" style="margin-top:4px;">' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit||'เส้น')) + '</div></div>';
 
     const priceCell = '<div><label>ราคา/หน่วย</label>' +
-        ((p || isCustomRow) ? '<input type="number" class="editable-price-input" value="' + (unitPrice || '') + '" min="0" step="1" placeholder="0" oninput="updateCustomPrice(' + item.id + ', this.value)" onblur="finishCustomPriceEdit(' + item.id + ')">' +
-             '<div class="editable-price-note">' + (isCustomRow ? 'สินค้าโป๊ว' : (isCustomPrice ? 'แก้เองจาก ฿' + p.price.toLocaleString() : 'จาก Sheet')) + '</div>' + deliveryBreakdown :
+        ((p || isCustomRow) ? '<input type="number" class="editable-price-input" value="' + (unitPrice || '') + '" min="0" step="0.01" placeholder="0" oninput="updateCustomPrice(' + item.id + ', this.value)" onblur="finishCustomPriceEdit(' + item.id + ')">' +
+             '<div class="editable-price-note">' + (isCustomRow ? 'สินค้าโป๊ว' : (isCustomPrice ? 'แก้เองจาก ฿' + formatMoney2(p.price) : 'จาก Sheet')) + '</div>' + deliveryBreakdown :
              '<div style="font-family:var(--mono);font-size:15px;font-weight:600;padding:9px 0;">—</div>') +
       '</div>';
 
-    const totalCell = '<div><label>รวม</label><div id="row-total-' + item.id + '" class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">' + (displaySubtotal ? '฿' + displaySubtotal.toLocaleString() : '—') + '</div></div>';
+    const totalCell = '<div><label>รวม</label><div id="row-total-' + item.id + '" class="text-red" style="font-family:var(--mono);font-size:15px;font-weight:700;padding:9px 0;">' + (displaySubtotal ? '฿' + formatMoney2(displaySubtotal) : '—') + '</div></div>';
     const removeCell = '<div><label>&nbsp;</label><button class="btn-icon" onclick="removeOrderRow(' + item.id + ')" title="ลบ">✕</button></div>';
 
     if (item.useSupplierCalc) {
@@ -3154,7 +3174,7 @@ function quickSearch(query) {
   el.innerHTML = matches.map(p =>
     '<div class="search-result-item" data-sku="' + esc(p.sku) + '" onclick="quickAddProduct(this.dataset.sku)">' +
       '<div><div class="search-result-sku">' + esc(p.sku) + '</div><div class="search-result-name">' + esc(p.name) + '</div></div>' +
-      '<div class="search-result-price">฿' + p.price.toLocaleString() + '</div>' +
+      '<div class="search-result-price">฿' + formatMoney2(p.price) + '</div>' +
     '</div>'
   ).join('') + (scored.length > 40 ? '<div class="text-muted" style="padding:8px;text-align:center;">แสดง 40 จาก ' + scored.length + ' รายการ — พิมพ์เพิ่มเพื่อกรอง</div>' : '');
 }
@@ -3198,22 +3218,22 @@ function updateSummary() {
     } else {
       summaryEl.innerHTML = lines.map(l =>
         '<div class="summary-line internal-line"><span class="label">' + l.name + ' × ' + l.qty + '</span>' +
-        '<div style="text-align:right;"><div class="value">฿' + l.subtotal.toLocaleString() + '</div>' +
-        '<div style="font-size:11px;color:var(--muted);">฿' + l.unitPrice.toLocaleString() + ' / ' + l.unit + '</div>' +
-        (includeDeliveryInProductPrice && l.absorbedDelivery > 0 ? '<div style="font-size:11px;color:var(--green);">รวมค่าส่งในสินค้า +฿' + l.absorbedDelivery.toLocaleString() + '</div>' : '') +
+        '<div style="text-align:right;"><div class="value">฿' + formatMoney2(l.subtotal) + '</div>' +
+        '<div style="font-size:11px;color:var(--muted);">฿' + formatMoney2(l.unitPrice) + ' / ' + l.unit + '</div>' +
+        (includeDeliveryInProductPrice && l.absorbedDelivery > 0 ? '<div style="font-size:11px;color:var(--green);">รวมค่าส่งในสินค้า +฿' + formatMoney2(l.absorbedDelivery) + '</div>' : '') +
         (l.weight ? '<div style="font-size:11px;color:var(--int);">' + l.weight.toFixed(2) + ' kg' + (l.pricekg?' · ฿'+l.pricekg+'/kg':'') + '</div>' : '') +
         '</div></div>'
       ).join('') +
       (totalWeight>0 ? '<div class="summary-line internal-line"><span class="label">🔒 น้ำหนักรวม</span><span class="value">' + totalWeight.toFixed(2) + ' kg</span></div>' : '') +
-      (!includeDeliveryInProductPrice && logistics>0 ? '<div class="summary-line"><span class="label">🚚 ค่าขนส่ง</span><span class="value">฿' + logistics.toLocaleString() + '</span></div>' : '') +
+      (!includeDeliveryInProductPrice && logistics>0 ? '<div class="summary-line"><span class="label">🚚 ค่าขนส่ง</span><span class="value">฿' + formatMoney2(logistics) + '</span></div>' : '') +
       (includeDeliveryInProductPrice && logistics>0 ? '<div class="summary-line"><span class="label">🚚 ค่าขนส่ง</span><span class="value" style="color:var(--green);">ฟรี</span></div>' : '') +
-      (multiplier !== 1 ? '<div class="summary-line"><span class="label">💳 ' + getPaymentLabel(selectedPayment) + '</span><span class="value">฿' + paymentSubtotalBeforeDiscount.toLocaleString() + '</span></div>' : '') +
-      (salesDisc>0 ? '<div class="summary-line"><span class="label">✂️ ส่วนลดพิเศษ</span><span class="value" style="color:var(--green);">-฿' + salesDisc.toLocaleString() + '</span></div>' : '') +
-      (grandVAT>0 ? '<div class="summary-line"><span class="label">🧾 VAT ' + vatRate + '%</span><span class="value">฿' + grandVAT.toLocaleString() + '</span></div>' : '');
+      (multiplier !== 1 ? '<div class="summary-line"><span class="label">💳 ' + getPaymentLabel(selectedPayment) + '</span><span class="value">฿' + formatMoney2(paymentSubtotalBeforeDiscount) + '</span></div>' : '') +
+      (salesDisc>0 ? '<div class="summary-line"><span class="label">✂️ ส่วนลดพิเศษ</span><span class="value" style="color:var(--green);">-฿' + formatMoney2(salesDisc) + '</span></div>' : '') +
+      (grandVAT>0 ? '<div class="summary-line"><span class="label">🧾 VAT ' + vatRate + '%</span><span class="value">฿' + formatMoney2(grandVAT) + '</span></div>' : '');
     }
-    document.getElementById('total-price').textContent = '฿' + grandTotal.toLocaleString();
+    document.getElementById('total-price').textContent = '฿' + formatMoney2(grandTotal);
     const gtEl = document.getElementById('grand-total-display');
-    if (gtEl) gtEl.textContent = '฿' + grandTotal.toLocaleString();
+    if (gtEl) gtEl.textContent = '฿' + formatMoney2(grandTotal);
 
     const payDefs = [
       { id:'transfer', months:0, type:'transfer' },
@@ -3237,8 +3257,8 @@ function updateSummary() {
       if (opt.id === '10') base10Val = tot;
       const te = document.getElementById('pay-' + opt.id);
       const se = document.getElementById('pay-' + opt.id + '-sub');
-      if (te) te.textContent = '฿' + tot.toLocaleString();
-      if (se && opt.months > 0) se.textContent = 'เดือนละ ฿' + Math.ceil(tot/opt.months).toLocaleString();
+      if (te) te.textContent = '฿' + formatMoney2(tot);
+      if (se && opt.months > 0) se.textContent = 'เดือนละ ฿' + formatMoney2(Math.ceil(tot/opt.months));
     }
     for (const opt of payDefs) {
       const saveEl = document.getElementById('pay-' + opt.id + '-save');
@@ -3292,30 +3312,30 @@ function generateQuote() {
 
   const lines = displayLines.map(l => {
     const itemNameForQuote = l.name + ((l.showSupplier && l.supplierName) ? ' - ' + l.supplierName : '');
-    const weightText = (l.showWeight && l.weight) ? '\n     น้ำหนัก/' + (l.unit || 'หน่วย') + ': ' + Number(l.weightPerUnit || 0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg  -   น้ำหนักรวม: ' + Number(l.weight).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg' : '';
-    return '  ▸ ' + itemNameForQuote + '\n     ' + l.qty + ' ' + l.unit + ' × ฿' + l.unitPrice.toLocaleString() + ' = ฿' + l.subtotal.toLocaleString() + weightText;
+    const weightText = (l.showWeight && l.weight) ? '\n     น้ำหนัก/' + (l.unit || 'หน่วย') + ': ' + formatWeight2(l.weightPerUnit || 0) + ' kg  -   น้ำหนักรวม: ' + formatWeight2(l.weight) + ' kg' : '';
+    return '  ▸ ' + itemNameForQuote + '\n     ' + l.qty + ' ' + l.unit + ' × ฿' + formatMoney2(l.unitPrice) + ' = ฿' + formatMoney2(l.subtotal) + weightText;
   });
 
   let payLine = '';
-  if (type === 'transfer') payLine = '🏦 โอนเงิน: ฿' + grand.toLocaleString();
-  else if (months === 0) payLine = '💳 บัตรเครดิต เงินสด: ฿' + grand.toLocaleString();
+  if (type === 'transfer') payLine = '🏦 โอนเงิน: ฿' + formatMoney2(grand);
+  else if (months === 0) payLine = '💳 บัตรเครดิต เงินสด: ฿' + formatMoney2(grand);
   else {
     const pm = Math.ceil(grand/months);
-    payLine = '📅 ผ่อน ' + months + ' เดือน: ฿' + grand.toLocaleString() + '\n   เดือนละ ~฿' + pm.toLocaleString();
+    payLine = '📅 ผ่อน ' + months + ' เดือน: ฿' + formatMoney2(grand) + '\n   เดือนละ ~฿' + formatMoney2(pm);
   }
 
   const now = new Date();
   const dateStr = now.getDate() + '/' + (now.getMonth()+1) + '/' + now.getFullYear();
-  const salesDiscLine = salesDisc > 0 ? '  ✂️ ส่วนลดพิเศษ' + (discReason ? ' (' + discReason + ')' : '') + ': -฿' + salesDisc.toLocaleString() + '\n' : '';
+  const salesDiscLine = salesDisc > 0 ? '  ✂️ ส่วนลดพิเศษ' + (discReason ? ' (' + discReason + ')' : '') + ': -฿' + formatMoney2(salesDisc) + '\n' : '';
   const itemPriceLabel = includeDeliveryInProductPrice && logistics > 0
-    ? '  💵 ราคาสินค้า (' + getPaymentLabel(selectedPayment) + ' / รวมค่าส่งแล้ว): ฿' + itemSubtotal.toLocaleString() + '\n'
-    : '  💵 ราคาสินค้า (' + getPaymentLabel(selectedPayment) + '): ฿' + itemSubtotal.toLocaleString() + '\n';
+    ? '  💵 ราคาสินค้า (' + getPaymentLabel(selectedPayment) + ' / รวมค่าส่งแล้ว): ฿' + formatMoney2(itemSubtotal) + '\n'
+    : '  💵 ราคาสินค้า (' + getPaymentLabel(selectedPayment) + '): ฿' + formatMoney2(itemSubtotal) + '\n';
   const logLine = logistics > 0
-    ? (includeDeliveryInProductPrice ? '  🚚 ค่าขนส่ง: ฟรี\n' : '  🚚 ค่าขนส่ง: ฿' + logistics.toLocaleString() + '\n')
+    ? (includeDeliveryInProductPrice ? '  🚚 ค่าขนส่ง: ฟรี\n' : '  🚚 ค่าขนส่ง: ฿' + formatMoney2(logistics) + '\n')
     : '';
   const paymentLine = '';
-  const vatLine = vat > 0 ? '  🧾 VAT ' + vatRate + '%:  ฿' + vat.toLocaleString() + '\n' : '';
-  const quote = '━━━━━━━━━━━━━━━━━━━━━━━━\n🔩 SteelDeal ใบเสนอราคา\n━━━━━━━━━━━━━━━━━━━━━━━━\n📅 วันที่: ' + dateStr + '\n👤 ลูกค้า: ' + custName + '\n' + (custCtx?'📞 '+custCtx+'\n':'') + (custAddr?'📍 '+custAddr+'\n':'') + '\n📦 รายการสินค้า:\n' + lines.join('\n') + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n' + itemPriceLabel + logLine + paymentLine + salesDiscLine + vatLine + '  ──────────────────────\n  💰 ยอดรวมสุทธิ: ฿' + grand.toLocaleString() + '\n\n' + payLine + '\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n✅ บริการของเรา:\n  • ผ่อน 0% สูงสุด 10 เดือน\n  • ส่งถึงที่ครบวงจร\n  • EEC · Bang Phli\n\n📞 LINE: @steeldeal' + (notes?'\n\n📝 หมายเหตุ: '+notes:'');
+  const vatLine = vat > 0 ? '  🧾 VAT ' + vatRate + '%:  ฿' + formatMoney2(vat) + '\n' : '';
+  const quote = '━━━━━━━━━━━━━━━━━━━━━━━━\n🔩 SteelDeal ใบเสนอราคา\n━━━━━━━━━━━━━━━━━━━━━━━━\n📅 วันที่: ' + dateStr + '\n👤 ลูกค้า: ' + custName + '\n' + (custCtx?'📞 '+custCtx+'\n':'') + (custAddr?'📍 '+custAddr+'\n':'') + '\n📦 รายการสินค้า:\n' + lines.join('\n') + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n' + itemPriceLabel + logLine + paymentLine + salesDiscLine + vatLine + '  ──────────────────────\n  💰 ยอดรวมสุทธิ: ฿' + formatMoney2(grand) + '\n\n' + payLine + '\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n✅ บริการของเรา:\n  • ผ่อน 0% สูงสุด 10 เดือน\n  • ส่งถึงที่ครบวงจร\n  • EEC · Bang Phli\n\n📞 LINE: @steeldeal' + (notes?'\n\n📝 หมายเหตุ: '+notes:'');
   document.getElementById('quote-output').textContent = quote;
 }
 function copyQuote() {
@@ -3393,13 +3413,13 @@ function calculateLogistics() {
   const orderTotal = buildOrderCalcLines(0, false).subtotalGoods;
   const discInfo = calculateLogisticsDiscount(orderTotal);
   const final = Math.max(0, beforeDisc - discInfo.discount);
-  document.getElementById('logistics-base').textContent = '฿' + base.toLocaleString();
+  document.getElementById('logistics-base').textContent = '฿' + formatMoney2(base);
   document.getElementById('helper-line').style.display = helper ? 'flex' : 'none';
-  document.getElementById('logistics-before-discount').textContent = '฿' + beforeDisc.toLocaleString();
+  document.getElementById('logistics-before-discount').textContent = '฿' + formatMoney2(beforeDisc);
   if (discInfo.discount > 0) {
     document.getElementById('discount-line').style.display = 'flex';
     document.getElementById('discount-label').textContent = '🎁 ' + discInfo.label + ':';
-    document.getElementById('logistics-discount').textContent = '-฿' + discInfo.discount.toLocaleString();
+    document.getElementById('logistics-discount').textContent = '-฿' + formatMoney2(discInfo.discount);
   } else { document.getElementById('discount-line').style.display = 'none'; }
   if (discInfo.nextUnlockMessage) {
     document.getElementById('next-unlock-box').style.display = 'block';
@@ -3419,7 +3439,7 @@ function calculateLogisticsDiscount(orderTotal) {
   let msg = null;
   if (next) {
     const need = next.threshold - orderTotal;
-    msg = '💡 เพิ่มอีก ฿' + need.toLocaleString() + ' → ลดค่าส่งได้อีก ฿' + (next.discount-cur.discount).toLocaleString() + '!';
+    msg = '💡 เพิ่มอีก ฿' + formatMoney2(need) + ' → ลดค่าส่งได้อีก ฿' + formatMoney2(next.discount-cur.discount) + '!';
   } else if (cur.discount > 0) { msg = '⭐ คุณได้ส่วนลดค่าส่งสูงสุดแล้ว!'; }
   return { discount: cur.discount, label: cur.label, nextUnlockMessage: msg };
 }
@@ -3451,7 +3471,7 @@ function renderProductTable(filter = '') {
   }
   tbody.innerHTML = filtered.map(p =>
     '<tr><td><span class="sku-code">' + p.sku + '</span></td><td>' + p.name + '</td>' +
-    '<td><span class="text-mono">฿' + p.price.toLocaleString() + '</span></td><td>' + p.unit + '</td>' +
+    '<td><span class="text-mono">฿' + formatMoney2(p.price) + '</span></td><td>' + p.unit + '</td>' +
     '<td><span class="internal-val">' + (p.weight?p.weight+' kg':'—') + '</span></td>' +
     '<td><span class="internal-val">' + (p.pricekg?'฿'+p.pricekg:'—') + '</span></td>' +
     '<td><div class="action-btns">' +
@@ -3629,8 +3649,8 @@ function distributeDisplayAmounts(lines, targetTotal) {
     if (totalBase > 0) {
       rawAmount = (Number(targetTotal) || 0) * ((Number(line.baseCustomerSubtotal) || 0) / totalBase);
     }
-    const unitPrice = Math.round(rawAmount / qty);
-    const subtotal = unitPrice * qty;
+    const unitPrice = roundMoney(rawAmount / qty);
+    const subtotal = roundMoney(unitPrice * qty);
     return {
       ...line,
       unitPrice: unitPrice,
@@ -3697,23 +3717,23 @@ async function generatePO() {
   else payTerms = 'ผ่อน ' + months + ' เดือน 0% — เดือนละ ฿' + Math.ceil(grandTotal/months).toLocaleString();
   const itemRows = lines.map((item, idx) => {
     const supplierText = (item.showSupplier && item.supplierName) ? ' - ' + escapeHTML(item.supplierName) : '';
-    const weightText = (item.showWeight && item.weight) ? '<div style="font-size:10px;color:#64748B;margin-top:2px;">น้ำหนัก/' + (item.unit || 'หน่วย') + ': ' + Number(item.weightPerUnit || 0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg  -   น้ำหนักรวม: ' + Number(item.weight).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' kg</div>' : '';
+    const weightText = (item.showWeight && item.weight) ? '<div style="font-size:10px;color:#64748B;margin-top:2px;">น้ำหนัก/' + (item.unit || 'หน่วย') + ': ' + formatWeight2(item.weightPerUnit || 0) + ' kg  -   น้ำหนักรวม: ' + formatWeight2(item.weight) + ' kg</div>' : '';
     return '<tr><td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+(idx+1)+'</td>' +
     '<td style="padding:6px 8px;border-bottom:1px solid #eee;">'+escapeHTML(item.name) + supplierText + weightText + '</td>' +
     '<td style="padding:6px 8px;text-align:center;border-bottom:1px solid #eee;">'+item.qty+' '+item.unit+'</td>' +
-    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.unitPrice.toLocaleString('th-TH', { maximumFractionDigits: 2 })+'</td>' +
-    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+item.subtotal.toLocaleString('th-TH', { maximumFractionDigits: 2 })+'</td></tr>';
+    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+formatMoney2(item.unitPrice)+'</td>' +
+    '<td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee;">'+formatMoney2(item.subtotal)+'</td></tr>';
   }).join('');
   const remarkRow = notes ? '<div style="margin:10px 0 4px 0;padding:8px 10px;background:#FFFBEB;border-left:3px solid #D97706;font-size:12px;line-height:1.5;"><strong>หมายเหตุ:</strong> ' + escapeHTML(notes).replace(/\n/g, '<br>') + '</div>' : '';
   const discountRow = (showPaymentDiscount && comparisonDiscount > 0) ?
-    '<tr><td style="padding:4px 12px;text-align:right;color:#16A34A;" colspan="1">ส่วนลด ' + (type === 'transfer' ? 'โอนเงิน' : payTerms) + ' ('+discountPct+'%)</td><td style="padding:4px 12px;text-align:right;color:#16A34A;">-'+comparisonDiscount.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
+    '<tr><td style="padding:4px 12px;text-align:right;color:#16A34A;" colspan="1">ส่วนลด ' + (type === 'transfer' ? 'โอนเงิน' : payTerms) + ' ('+discountPct+'%)</td><td style="padding:4px 12px;text-align:right;color:#16A34A;">-'+formatMoney2(comparisonDiscount)+'</td></tr>' : '';
   const compareRow = (showPaymentDiscount && comparisonDiscount > 0) ?
-    '<tr><td style="padding:4px 12px;text-align:right;">ราคาก่อนส่วนลด ('+compareOpt.label+')</td><td style="padding:4px 12px;text-align:right;">'+compareBeforeDiscount.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
-  const cashSubtotalRow = '<tr><td style="padding:4px 12px;text-align:right;">ราคาสินค้า ('+getPaymentLabel(selectedPayment)+')</td><td style="padding:4px 12px;text-align:right;">'+itemSubtotal.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>';
+    '<tr><td style="padding:4px 12px;text-align:right;">ราคาก่อนส่วนลด ('+compareOpt.label+')</td><td style="padding:4px 12px;text-align:right;">'+formatMoney2(compareBeforeDiscount)+'</td></tr>' : '';
+  const cashSubtotalRow = '<tr><td style="padding:4px 12px;text-align:right;">ราคาสินค้า ('+getPaymentLabel(selectedPayment)+')</td><td style="padding:4px 12px;text-align:right;">'+formatMoney2(itemSubtotal)+'</td></tr>';
   const paymentSubtotalRow = ''; // payment cost is already reflected in line-item unit prices
-  const logRow = logistics>0 ? (includeDeliveryInProductPrice ? '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าขนส่ง</td><td style="padding:4px 12px;text-align:right;color:#16A34A;font-weight:700;">ฟรี</td></tr>' : '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าขนส่ง</td><td style="padding:4px 12px;text-align:right;">'+logistics.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>') : '';
+  const logRow = logistics>0 ? (includeDeliveryInProductPrice ? '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าขนส่ง</td><td style="padding:4px 12px;text-align:right;color:#16A34A;font-weight:700;">ฟรี</td></tr>' : '<tr><td style="padding:4px 12px;text-align:right;" colspan="1">ค่าขนส่ง</td><td style="padding:4px 12px;text-align:right;">'+formatMoney2(logistics)+'</td></tr>') : '';
   const actualBeforeVat = paymentSubtotal;
-  const vatRow = vatAmt>0 ? '<tr><td style="padding:4px 12px;text-align:right;">ภาษีมูลค่าเพิ่ม 7%</td><td style="padding:4px 12px;text-align:right;">'+vatAmt.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' : '';
+  const vatRow = vatAmt>0 ? '<tr><td style="padding:4px 12px;text-align:right;">ภาษีมูลค่าเพิ่ม 7%</td><td style="padding:4px 12px;text-align:right;">'+formatMoney2(vatAmt)+'</td></tr>' : '';
   const el = document.getElementById('po-hidden');
   el.innerHTML = '<div style="font-family:Sarabun,sans-serif;font-size:13px;color:#000;line-height:1.5;padding:20px;background:#fff;width:794px;">' +
     '<div style="border-bottom:3px solid #DC2626;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;">' +
@@ -3760,10 +3780,10 @@ async function generatePO() {
     '<div style="display:flex;justify-content:flex-end;margin-bottom:24px;">' +
       '<table style="font-size:12px;width:280px;">' +
         cashSubtotalRow + logRow + compareRow + discountRow +
-        '<tr><td style="padding:4px 12px;text-align:right;">รวมก่อน VAT</td><td style="padding:4px 12px;text-align:right;font-weight:600;">'+actualBeforeVat.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' +
+        '<tr><td style="padding:4px 12px;text-align:right;">รวมก่อน VAT</td><td style="padding:4px 12px;text-align:right;font-weight:600;">'+formatMoney2(actualBeforeVat)+'</td></tr>' +
         vatRow +
         '<tr style="border-top:2px solid #000;font-weight:700;font-size:14px;"><td style="padding:8px 12px;text-align:right;">ยอดรวมสุทธิ</td>' +
-        '<td style="padding:8px 12px;text-align:right;color:#DC2626;">'+grandTotal.toLocaleString('th-TH',{minimumFractionDigits:2})+'</td></tr>' +
+        '<td style="padding:8px 12px;text-align:right;color:#DC2626;">'+formatMoney2(grandTotal)+'</td></tr>' +
       '</table></div>' +
     '<div style="display:flex;justify-content:space-between;margin-top:32px;font-size:12px;">' +
       '<div style="text-align:center;width:180px;"><div style="border-bottom:1px solid #000;height:50px;"></div><div style="margin-top:6px;">ผู้จัดทำ</div></div>' +
@@ -3979,7 +3999,7 @@ function renderQuoteHistory(quotes) {
         (q.phone ? '<span class="quote-pill">โทร: ' + escapeHTML(q.phone) + '</span>' : '') +
         (hasPayload ? '<span class="quote-pill" style="color:#16A34A;">โหลดแก้ไขได้</span>' : '<span class="quote-pill" style="color:#B91C1C;">ไม่มี Payload</span>') +
       '</div></div>' +
-      '<div><div class="quote-card-total">฿' + Number(q.grandTotal || 0).toLocaleString('th-TH') + '</div>' +
+      '<div><div class="quote-card-total">฿' + formatMoney2(q.grandTotal || 0) + '</div>' +
       '<div class="quote-card-actions">' +
         (q.fileUrl ? '<button class="btn btn-ghost" onclick="window.open(\'' + String(q.fileUrl).replace(/'/g, "\\'") + '\',\'_blank\')">ดูไฟล์</button>' : '') +
         '<button class="btn btn-primary" ' + (hasPayload ? '' : 'disabled style="opacity:.5;cursor:not-allowed;"') + ' onclick="copyQuoteAsNew(\'' + String(q.quoteNo || '').replace(/'/g, "\\'") + '\')">คัดลอกเป็นใบใหม่</button>' +
