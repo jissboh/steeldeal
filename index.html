@@ -1403,7 +1403,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 // CONFIG
 // ════════════════════════════════════════
 // ─── APPS SCRIPT ENDPOINT (set after deploying) ───
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbws_CAG31KeRS6nowM-pE_sf_jEStlf49GcGbS5Us8h00lXUkBxbYBA4JZU4NvMwTPSxw/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRsc3Kd95GfgE8e2Vtv_4KMpTg5Z_Dd1o5ikqji6BSBSEPSLg49EaHPjUF9pm2bCmM/exec';
 
 // ─── STAFF MANAGEMENT ───
 let staffList = [];
@@ -1574,7 +1574,7 @@ async function loadStaffFromSheet(lines) {
 
 // CONFIG
 // ════════════════════════════════════════
-const SHEET_ID       = '1Bh_oSgWbAaOTS96Z-p1q-ZZ6inKQ1hl5BuRrgA5aCFw';
+const SHEET_ID       = '12qHfqLLUsRSFScexRe1U2SQcVSIVEb4J6M2u5KSW03g';
 // IMPORTANT: tab names must match Google Sheets exactly, including emoji.
 const SHEET_TAB      = '🔍 Tool Export';
 const STAFF_TAB      = '👥 Staff';
@@ -1582,8 +1582,8 @@ const STAFF_TAB      = '👥 Staff';
 function makeSheetCsvUrl(tabName) {
   // Use gid= (numeric) not sheet= (name) — more reliable per Google Sheets gviz API
   const GID_MAP = {
-    '🔍 Tool Export': '692965963',
-    '👥 Staff':       '1771826324',
+    '🔍 Tool Export': '1507465505',
+    '👥 Staff':       '789999685',
   };
   const gid = GID_MAP[tabName];
   if (gid) {
