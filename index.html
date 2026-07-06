@@ -199,6 +199,9 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 }
 .custom-product-grid label { font-size: 10px; margin-bottom: 2px; }
 .custom-product-grid input, .custom-product-grid select { padding: 6px 8px; font-size: 13px; }
+.custom-product-box > input[type="text"] {
+  min-width: 0;
+}
 .custom-product-label {
   display: inline-flex;
   align-items: center;
@@ -533,6 +536,9 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
   border-bottom: 1px solid var(--border);
 }
 .order-row:last-child { border-bottom: none; }
+.order-row > div {
+  min-width: 0;
+}
 .sku-code {
   font-family: var(--mono); font-size: 11px;
   background: var(--mid); color: var(--muted);
@@ -794,6 +800,47 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 .checkbox-label {
   display: flex; align-items: center; gap: 8px;
   cursor: pointer; font-size: 14px;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 12px;
+  }
+  .panel-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .panel-header > .flex {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .order-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .custom-product-box {
+    padding: 10px;
+  }
+  .custom-product-grid {
+    grid-template-columns: 1fr;
+  }
+  .line-ops-grid,
+  .supplier-calc-grid,
+  .order-row-price-grid {
+    grid-template-columns: 1fr;
+  }
+  .order-row-left-workspace {
+    grid-template-columns: 1fr;
+  }
+  .btn,
+  .btn-icon,
+  .btn-qty,
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+  }
 }
 </style>
 </head>
