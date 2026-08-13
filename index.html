@@ -532,12 +532,52 @@ hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
   grid-template-columns: 2fr 160px 120px 120px 44px;
   gap: 12px;
   align-items: end;
-  padding: 14px 0;
+  padding: 40px 0 14px;
   border-bottom: 1px solid var(--border);
+  position: relative;
+  transition: background-color .15s, box-shadow .15s, opacity .15s;
 }
 .order-row:last-child { border-bottom: none; }
 .order-row > div {
   min-width: 0;
+}
+.order-drag-handle {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 52px;
+  height: 27px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #94A3B8;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -3px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.order-drag-handle:hover,
+.order-drag-handle:focus-visible {
+  color: var(--text);
+  background: var(--mid);
+  border-color: var(--border2);
+  outline: none;
+}
+.order-drag-handle:active { cursor: grabbing; }
+#order-items.is-reordering { user-select: none; }
+.order-row.is-dragging {
+  background: #EFF6FF;
+  box-shadow: inset 0 0 0 2px #60A5FA, 0 8px 24px rgba(15,23,42,.10);
+  opacity: .82;
+  z-index: 2;
 }
 .sku-code {
   font-family: var(--mono); font-size: 11px;
@@ -2837,6 +2877,152 @@ function removeOrderRow(id) {
   orderItems = orderItems.filter(i => i.id !== id);
   renderOrderItems();
 }
+
+let orderDragState = null;
+let nativeOrderDragRow = null;
+
+function moveOrderItem(id, offset) {
+  const fromIndex = orderItems.findIndex(item => String(item.id) === String(id));
+  if (fromIndex < 0) return false;
+  const toIndex = Math.max(0, Math.min(orderItems.length - 1, fromIndex + offset));
+  if (toIndex === fromIndex) return false;
+  const [item] = orderItems.splice(fromIndex, 1);
+  orderItems.splice(toIndex, 0, item);
+  renderOrderItems();
+  requestAnimationFrame(() => {
+    document.querySelector('.order-drag-handle[data-order-id="' + item.id + '"]')?.focus();
+  });
+  showToast('✓ เปลี่ยนลำดับสินค้าแล้ว');
+  return true;
+}
+
+function syncOrderItemsFromDom() {
+  const rows = Array.from(document.querySelectorAll('#order-items .order-row[data-order-id]'));
+  const itemById = new Map(orderItems.map(item => [String(item.id), item]));
+  const reordered = rows.map(row => itemById.get(row.dataset.orderId)).filter(Boolean);
+  if (reordered.length !== orderItems.length) return false;
+  const changed = reordered.some((item, index) => item !== orderItems[index]);
+  if (changed) orderItems = reordered;
+  return changed;
+}
+
+function finishOrderItemDrag(event, cancelled = false) {
+  const state = orderDragState;
+  if (!state || (event.pointerId != null && state.pointerId !== event.pointerId)) return;
+  orderDragState = null;
+  state.row.classList.remove('is-dragging');
+  state.container.classList.remove('is-reordering');
+  if (state.handle.hasPointerCapture?.(state.pointerId)) {
+    state.handle.releasePointerCapture(state.pointerId);
+  }
+  if (cancelled) {
+    renderOrderItems();
+    return;
+  }
+  const changed = syncOrderItemsFromDom();
+  renderOrderItems();
+  if (changed) showToast('✓ เปลี่ยนลำดับสินค้าแล้ว');
+}
+
+function positionDraggedOrderRow(container, draggedRow, clientY) {
+  const otherRows = Array.from(container.querySelectorAll('.order-row[data-order-id]'))
+    .filter(row => row !== draggedRow);
+  const insertBefore = otherRows.find(row => {
+    const rect = row.getBoundingClientRect();
+    return clientY < rect.top + rect.height / 2;
+  });
+  if (insertBefore) container.insertBefore(draggedRow, insertBefore);
+  else container.appendChild(draggedRow);
+
+  const edge = 72;
+  if (clientY < edge) window.scrollBy(0, -12);
+  else if (clientY > window.innerHeight - edge) window.scrollBy(0, 12);
+}
+
+function finishNativeOrderItemDrag() {
+  if (!nativeOrderDragRow) return;
+  const row = nativeOrderDragRow;
+  nativeOrderDragRow = null;
+  row.classList.remove('is-dragging');
+  document.getElementById('order-items')?.classList.remove('is-reordering');
+  const changed = syncOrderItemsFromDom();
+  renderOrderItems();
+  if (changed) showToast('✓ เปลี่ยนลำดับสินค้าแล้ว');
+}
+
+function initOrderItemReordering() {
+  const container = document.getElementById('order-items');
+  if (!container || container.dataset.reorderReady === 'true') return;
+  container.dataset.reorderReady = 'true';
+
+  container.addEventListener('pointerdown', event => {
+    const handle = event.target.closest('.order-drag-handle');
+    if (!handle || (event.button != null && event.button !== 0)) return;
+    const row = handle.closest('.order-row[data-order-id]');
+    if (!row || orderItems.length < 2) return;
+    if (event.pointerType === 'mouse') return; // Native drag events give desktop users smoother dragging.
+    event.preventDefault();
+    handle.setPointerCapture?.(event.pointerId);
+    orderDragState = {
+      container,
+      handle,
+      row,
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      moved: false
+    };
+    row.classList.add('is-dragging');
+    container.classList.add('is-reordering');
+  });
+
+  container.addEventListener('pointermove', event => {
+    const state = orderDragState;
+    if (!state || state.pointerId !== event.pointerId) return;
+    if (!state.moved && Math.abs(event.clientY - state.startY) < 5) return;
+    state.moved = true;
+    event.preventDefault();
+
+    positionDraggedOrderRow(container, state.row, event.clientY);
+  });
+
+  container.addEventListener('pointerup', event => finishOrderItemDrag(event));
+  container.addEventListener('pointercancel', event => finishOrderItemDrag(event, true));
+
+  container.addEventListener('dragstart', event => {
+    const handle = event.target.closest('.order-drag-handle');
+    const row = handle?.closest('.order-row[data-order-id]');
+    if (!row || orderItems.length < 2) {
+      event.preventDefault();
+      return;
+    }
+    nativeOrderDragRow = row;
+    row.classList.add('is-dragging');
+    container.classList.add('is-reordering');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', row.dataset.orderId);
+  });
+
+  container.addEventListener('dragover', event => {
+    if (!nativeOrderDragRow) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    positionDraggedOrderRow(container, nativeOrderDragRow, event.clientY);
+  });
+
+  container.addEventListener('drop', event => {
+    if (!nativeOrderDragRow) return;
+    event.preventDefault();
+    finishNativeOrderItemDrag();
+  });
+  container.addEventListener('dragend', finishNativeOrderItemDrag);
+
+  container.addEventListener('keydown', event => {
+    const handle = event.target.closest('.order-drag-handle');
+    if (!handle || !['ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    event.preventDefault();
+    moveOrderItem(handle.dataset.orderId, event.key === 'ArrowUp' ? -1 : 1);
+  });
+}
 function updateItem(id, field, value) {
   const item = orderItems.find(i => i.id === id);
   if (!item) return;
@@ -3199,6 +3385,7 @@ function renderOrderItems() {
         'ราคาลูกค้า ฿' + formatMoney2(displayUnitPrice) + '/' + (isCustomRow ? (item.customUnit || 'เส้น') : (p?.unit || 'เส้น')) +
       '</div>' : '<div id="delivery-breakdown-' + item.id + '" class="editable-price-note"></div>';
     const supplierCalcPanel = renderSupplierFulfillmentCalculator(item);
+    const reorderHandle = '<button type="button" class="order-drag-handle" data-order-id="' + item.id + '" draggable="true" aria-label="ลากเพื่อจัดลำดับสินค้า ใช้ปุ่มลูกศรขึ้นหรือลงได้" title="ลากเพื่อย้ายรายการขึ้นหรือลง"><span aria-hidden="true">⠿</span></button>';
 
     const productCell = isCustomRow ?
       '<div><label>สินค้า</label>' +
@@ -3243,7 +3430,7 @@ function renderOrderItems() {
     const removeCell = '<div><label>&nbsp;</label><button class="btn-icon" onclick="removeOrderRow(' + item.id + ')" title="ลบ">✕</button></div>';
 
     if (item.useSupplierCalc) {
-      return '<div class="order-row order-row-with-calc-v2">' +
+      return '<div class="order-row order-row-with-calc-v2" data-order-id="' + item.id + '">' + reorderHandle +
         '<div class="order-row-left-workspace">' +
           '<div class="product-main-panel">' + productCell + '</div>' +
           '<div class="order-row-price-grid">' + qtyCell + priceCell + totalCell + removeCell + '</div>' +
@@ -3252,7 +3439,7 @@ function renderOrderItems() {
       '</div>';
     }
 
-    return '<div class="order-row">' +
+    return '<div class="order-row" data-order-id="' + item.id + '">' + reorderHandle +
       '<div class="product-main-panel">' + productCell + '</div>' +
       qtyCell + priceCell + totalCell + removeCell +
     '</div>';
@@ -4263,6 +4450,7 @@ function loadQuotePayloadIntoForm(payload) {
 // unknown fields, but Quote Log columns/scripts must be expanded if you want to store them.
 
 // v50 UX: Supplier calculator is hidden by default and rendered side-by-side only when enabled per item.
+initOrderItemReordering();
 loadFromSheets();
 </script>
 <!-- Hidden PO template for PDF generation -->
