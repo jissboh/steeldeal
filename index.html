@@ -1730,7 +1730,7 @@ async function loadStaffFromSheet(lines) {
 
 // CONFIG
 // ════════════════════════════════════════
-const SHEET_ID       = '12qHfqLLUsRSFScexRe1U2SQcVSIVEb4J6M2u5KSW03g';
+const SHEET_ID       = '1YMtxu0Dpv2RboS1TBoBIH2cH2OBqlHcO4gDEDg8baZE';
 // IMPORTANT: tab names must match Google Sheets exactly, including emoji.
 const SHEET_TAB      = '🔍 Tool Export';
 const STAFF_TAB      = '👥 Staff';
@@ -1738,8 +1738,8 @@ const STAFF_TAB      = '👥 Staff';
 function makeSheetCsvUrl(tabName) {
   // Use gid= (numeric) not sheet= (name) — more reliable per Google Sheets gviz API
   const GID_MAP = {
-    '🔍 Tool Export': '1507465505',
-    '👥 Staff':       '789999685',
+    '🔍 Tool Export': '1298027116',
+    '👥 Staff':       '1861585253',
   };
   const gid = GID_MAP[tabName];
   if (gid) {
