@@ -3940,6 +3940,28 @@ dz?.addEventListener('drop', e => {
 // ════════════════════════════════════════
 // JPG QUOTATION GENERATION
 // ════════════════════════════════════════
+function createQuotationNumber(now = new Date(), cryptoSource = globalThis.crypto) {
+  if (!cryptoSource || typeof cryptoSource.getRandomValues !== 'function') {
+    throw new Error('Secure quotation-number generation is unavailable in this browser');
+  }
+
+  const pad2 = value => String(value).padStart(2, '0');
+  const timestamp = String(now.getFullYear()) +
+    pad2(now.getMonth() + 1) +
+    pad2(now.getDate()) + '-' +
+    pad2(now.getHours()) +
+    pad2(now.getMinutes()) +
+    pad2(now.getSeconds()) +
+    String(now.getMilliseconds()).padStart(3, '0');
+  const entropy = new Uint8Array(8);
+  cryptoSource.getRandomValues(entropy);
+  const randomSuffix = Array.from(entropy, byte => byte.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase();
+
+  return 'QI' + timestamp + '-' + randomSuffix;
+}
+
 function getPOCompareOption() {
   const raw = document.getElementById('po-discount-compare-months')?.value || '10';
   const map = {
@@ -4030,7 +4052,7 @@ async function generatePO() {
   const grandTotal = pricing.grandTotal;
   const now = new Date();
   const dateStr = now.getDate().toString().padStart(2,'0') + '/' + (now.getMonth()+1).toString().padStart(2,'0') + '/' + (now.getFullYear()+543);
-  const poNumber = 'QI' + now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0') + now.getHours().toString().padStart(2,'0') + now.getMinutes().toString().padStart(2,'0');
+  const poNumber = createQuotationNumber(now);
   let payTerms = '';
   if (type==='transfer') payTerms = 'โอนเงิน';
   else if (months===0) payTerms = 'บัตรเครดิต เงินสด';
@@ -4129,11 +4151,7 @@ async function generatePO() {
       // while giving customers a LINE-friendly image preview.
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
 
-      const dd = String(now.getDate()).padStart(2, '0');
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mi = String(now.getMinutes()).padStart(2, '0');
-      const fileName = `QT-${dd}${mm}-${hh}${mi}.jpg`;
+      const fileName = poNumber + '.jpg';
 
       // Download locally first so the sales user always gets the JPG immediately.
       const link = document.createElement('a');
